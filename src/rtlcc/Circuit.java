@@ -32,6 +32,18 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
+import org.jenetics.BitChromosome;
+import org.jenetics.BitGene;
+import org.jenetics.GeneticAlgorithm;
+import org.jenetics.Genotype;
+import org.jenetics.Mutator;
+import org.jenetics.NumberStatistics;
+import org.jenetics.Optimize;
+import org.jenetics.RouletteWheelSelector;
+import org.jenetics.SinglePointCrossover;
+import org.jenetics.SwapMutator;
+import org.jenetics.util.Factory;
+import org.jenetics.util.Function;
 import processing.core.PApplet;
 import processing.core.PGraphics;
 import processing.opengl.PGraphics3D;
@@ -90,7 +102,11 @@ public class Circuit {
                     String[] comp = t.split("\\.");
                     int i = Integer.parseInt(comp[0]);
                     String name = comp[1];
-                    temp.add(cset[i].get(name));
+                    Component c = cset[i].get(name);
+                    if (c == null) {
+                        throw new IllegalArgumentException("arg: " + joint + " : " + name + " not found!");
+                    }
+                    temp.add(c);
                 }
                 if (s.length > 1) {
                     jointName.add(s[1].trim());
@@ -141,7 +157,12 @@ public class Circuit {
         }
 
         //adiciona vertices e entradas/saidas (com nome)
+        int i = 0;
         for (Circuit c : cset) {
+            if (c == null) {
+                throw new IllegalArgumentException("arg: Circuit " + i + " == null");
+            }
+            i++;
             for (Component comp : c.vertices) {
                 if (!comp.consumed && !nc.vertices.contains(comp)) {
                     nc.vertices.add(comp);
@@ -252,7 +273,9 @@ public class Circuit {
                 map.put(pos, old);
             }
 
-            for (int[] w : t.getNeighborhood(pos)) {
+            ArrayList<int[]> neighborhood = t.getNeighborhood(pos);
+            Collections.shuffle(neighborhood);
+            for (int[] w : neighborhood) {
                 if (cube[w[0]][w[1]][w[2]] == UNVISITED) {
                     queue.add(w);
                     cube[w[0]][w[1]][w[2]] = ONQUEUE;
@@ -267,10 +290,10 @@ public class Circuit {
                 //conecta o caminho
                 int[] i = ini;
                 Component n = v;
-                System.out.println("place");
-                System.out.println(map.containsKey(i) + " " + map.size());
+                //System.out.println("place");
+                //System.out.println(map.containsKey(i) + " " + map.size());
                 while (map.containsKey(i)) {
-                    System.out.println(".");
+                    //System.out.println(".");
                     i = map.get(i);
                     n = expand(n, j);
                     n.pos = i;
@@ -399,6 +422,22 @@ public class Circuit {
         return directions;
     }
 
+    private int getDisconectedConnections() {
+        int dc = 0;
+        for (Component c : vertices) {
+            for (boolean b : c.doneConnections) {
+                if (!b) {
+                    dc++;
+                }
+            }
+        }
+        return dc;
+    }
+
+    private int getVolume() {
+        return 1;
+    }
+
     class Dijkstra {
 
         int toInt(int x, int y, int z) {
@@ -512,22 +551,60 @@ public class Circuit {
 //    
     public boolean makePathTo(Component v, Component j, Topology t) {
         try {
-            System.out.println("find");
-            //List<int[]> directions = getDirections(v.pos, j.pos, t);
+            //System.out.println("find");
+            int vi = j.connections.indexOf(v);
+            int ji = v.connections.indexOf(j);
 
             Dijkstra d = new Dijkstra();
             d.computePaths(v.pos, j.pos, t);
-            List<int[]> directions = d.getShortestPathTo(j.pos);
+            List<int[]> directions = null, dt;
+            Component f = null;
+            for (Component c : vertices) {
+                if (c == j || (c.joint && c.ends.contains(j))) {
+                    dt = d.getShortestPathTo(c.pos);
+                    if (directions == null || dt.size() < directions.size()) {
+                        directions = dt;
+                        f = c;
+                        if (directions.size() == 1) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (f.joint) {
+                //System.out.println("joint join");
+            }
+
+            boolean x = false;
 
             Component n = v;
             for (int[] c : directions) {
-                System.out.println("*");
+                //System.out.println("*");
                 n = expand(n, j);
+                //definir que todas as juntas compartilham os mesmos ends
                 n.pos = c;
+                x = true;
             }
-            return true;
+
+            if (!x) {
+                for (int[] ng : t.getNeighborhood(v.pos)) {
+                    if (Arrays.equals(ng, j.pos)) {
+                        x = true;
+                        break;
+                    }
+                }
+            }
+
+            if (x) {
+                v.doneConnections.set(ji, true);
+                j.doneConnections.set(vi, true);
+                return true;
+            } else {
+                return false;
+            }
         } catch (Exception e) {
-            System.out.println("fail");
+            //System.out.println("fail");
             e.printStackTrace();
             return false;
         }
@@ -701,7 +778,7 @@ public class Circuit {
                                 if (makePathTo(v, j, t)) {
                                     sleep();
                                 } else {
-                                    System.out.println(v.getUID() + " -/-> " + j.getUID());
+                                    //System.out.println(v.getUID() + " -/-> " + j.getUID());
                                 }
 //                                break;
                             }
@@ -713,6 +790,107 @@ public class Circuit {
         }
     }
 
+    public int bits = 3;//7
+
+    public int placeComponentsByGenotype(Genotype<BitGene> genotype, Topology t) {
+        BitChromosome ch = ((BitChromosome) genotype.getChromosome());
+        for (int i = 0; i < vertices.size(); i++) {
+            int[] p = new int[3];
+            for (int j = 0; j < 3; j++) {
+                p[j] = 0;
+                for (int k = 0; k < bits; k++) {
+                    if (ch.getGene((i * bits * 3) + (j * bits) + k).getBit()) {
+                        p[j] += Math.pow(2, k);
+                    }
+                }
+            }
+
+//            if (!t.isValid(p)) {
+//                return 0;
+//            }
+            for (Component w : vertices) {
+                if (w.pos != null && Arrays.equals(w.pos, p)) {
+                    return 0;
+                }
+            }
+
+            vertices.get(i).pos = p;
+        }
+        return 1;
+    }
+
+    static class OneCounter implements Function<Genotype<BitGene>, Integer> {
+
+        public int bits;
+        public static int count = 0;
+        public Topology t;
+        public CircuitBuilder cb;
+
+        private OneCounter(Topology t, int bits, CircuitBuilder cb) {
+            this.t = t;
+            this.bits = bits;
+            this.cb = cb;
+        }
+
+        @Override
+        public Integer apply(final Genotype<BitGene> genotype) {
+            long time = System.currentTimeMillis();
+            Circuit c = cb.build();
+            int n1 = c.vertices.size();
+            int a = c.placeComponentsByGenotype(genotype, t);
+            if (a == 1) {
+                c.cubeficate(t);
+            }
+            int dc = c.getDisconectedConnections();
+            int v = c.getVolume();
+            int n2 = c.vertices.size();
+            double p = a * ((1.0 / v + 1.0 / (dc + 1) + 1.0 / (n2 - n1 + 1)) * 1000);
+            System.out.println("done " + count++ + " in " + (System.currentTimeMillis() - time) + " ms, vertices: " + n1 + " -> " + n2 + ", disc: " + dc + " | p: " + p);
+            System.gc();
+
+            if (dc == 0) {
+                c.show3D();
+            }
+
+            return (int) p;
+        }
+    }
+
+    public void geneticPlaceComponents(int pop, int gen, Topology t, CircuitBuilder cb) {
+        System.out.println("" + (this.vertices.size()));
+        Factory<Genotype<BitGene>> gtf = Genotype.of(
+                BitChromosome.of(this.vertices.size() * bits * 3, 0.15)
+        );
+
+        OneCounter oneCounter = new OneCounter(t, bits, cb);
+
+        Function<Genotype<BitGene>, Integer> ff = oneCounter;
+        GeneticAlgorithm<BitGene, Integer> ga
+                = new GeneticAlgorithm<>(
+                        gtf, ff, Optimize.MAXIMUM
+                );
+
+        ga.setStatisticsCalculator(
+                new NumberStatistics.Calculator<BitGene, Integer>()
+        );
+        ga.setPopulationSize(pop);
+        ga.setSelectors(
+                new RouletteWheelSelector<BitGene, Integer>()
+        );
+        ga.setAlterers(
+                new Mutator<BitGene>(0.55),
+                new SinglePointCrossover<BitGene>(0.06),
+                new SwapMutator<BitGene>(0.2)
+        );
+
+        ga.setup();
+        ga.evolve(gen);
+        System.out.println(ga.getBestStatistics());
+        System.out.println(ga.getBestPhenotype());
+        System.out.println("" + (this.vertices.size() * bits));
+        placeComponentsByGenotype(ga.getBestPhenotype().getGenotype(), t);
+    }
+
     public void show2D() {
         SparseMultigraph<String, String> graph = new SparseMultigraph<>();
 
@@ -722,6 +900,7 @@ public class Circuit {
         }
 
         //adciona arestas
+        int id = 0;
         for (Component v : vertices) {
             int i = 0;
             for (Component e : v.connections) {
@@ -733,9 +912,11 @@ public class Circuit {
                 String c2t = e.terminals.get(eTerm);
                 String c2 = e.getUID();
 
-                graph.addEdge(c1 + "." + c1t + "-" + comp + "-" + c2 + "." + c2t, v.getUID(), e.getUID());
+                //graph.addEdge(c1 + "." + c1t + "-" + comp + "-" + c2 + "." + c2t, v.getUID(), e.getUID());
+                graph.addEdge(comp + "[" + id + "]", v.getUID(), e.getUID());
+                id++;
+                i++;
             }
-            i++;
         }
 
         Layout<Integer, String> layout = new FRLayout(graph);
@@ -743,7 +924,13 @@ public class Circuit {
         VisualizationViewer<Integer, String> vv = new VisualizationViewer<>(layout);
         vv.setPreferredSize(new Dimension(350, 350));
         vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
-        vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller());
+        vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller() {
+            @Override
+            public String transform(Object v) {
+                String s = v.toString();
+                return s.substring(0, s.indexOf('['));
+            }
+        });
         DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
         gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
         vv.setGraphMouse(gm);

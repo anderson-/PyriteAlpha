@@ -13,9 +13,9 @@ import java.util.ArrayList;
  */
 public abstract class Topology {
 
-    public static final int X = 5;
-    public static final int Y = 5;
-    public static final int Z = 5;
+    public static final int X = 9;
+    public static final int Y = 9;
+    public static final int Z = 9;
 
     public static final Topology SIMPLE = new Topology() {
         @Override
@@ -40,7 +40,7 @@ public abstract class Topology {
             return nd;
         }
     };
-    
+
     public static final Topology SIMPLE2 = new Topology() {
         @Override
         public ArrayList<int[]> getNeighborhood(int... pos) {
@@ -55,7 +55,7 @@ public abstract class Topology {
 
                         if (x >= 0 && y >= 0 && z >= 0 && x < X && y < Y && z < Z) {
                             //if (Math.abs(i) + Math.abs(j) + Math.abs(k) == 1) {
-                                nd.add(new int[]{x, y, z});
+                            nd.add(new int[]{x, y, z});
                             //}
                         }
                     }
@@ -66,4 +66,8 @@ public abstract class Topology {
     };
 
     public abstract ArrayList<int[]> getNeighborhood(int... pos);
+
+    public boolean isValid(int[] p) {
+        return p[0] < X && p[1] < Y && p[2] < Z;
+    }
 }

@@ -15,21 +15,24 @@ public class RTLCC {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        Circuit and = CircuitBuilder.AND4();
-        and.show2D();
+        Circuit and = CircuitBuilder.AND();
+        and = CircuitBuilder.CLOSE(and);
+//        and.show2D();
 
-        and.get("a").pos = new int[]{0, 0, 0};
-        and.get("b").pos = new int[]{4, 0, 0};
-        and.get("c").pos = new int[]{0, 4, 0};
-        and.get("d").pos = new int[]{4, 4, 0};
-        and.get("s").pos = new int[]{0, 0, 4};
-        and.get("vcc").pos = new int[]{4, 0, 4};
-        and.get("gnd").pos = new int[]{0, 4, 0};
-//        and.get("b").pos = new int[]{3, 0, 0};
-//        and.get("s").pos = new int[]{0, 3, 0};
-//        and.get("vcc").pos = new int[]{3, 3, 0};
-//        and.get("gnd").pos = new int[]{0, 0, 3};
-        and.cubeficate(Topology.SIMPLE2);
+//        and.get("s").pos = new int[]{3, 3, 3};
+//        and.get("b").pos = new int[]{4, 0, 0};
+//        and.get("s").pos = new int[]{0, 0, 4};
+//        and.get("vcc").pos = new int[]{4, 0, 4};
+//        and.get("gnd").pos = new int[]{0, 4, 0};
+        and.geneticPlaceComponents(100, 100, Topology.SIMPLE, new CircuitBuilder(){
+
+            @Override
+            public Circuit build() {
+                return CLOSE(AND());
+            }
+            
+        });
+        and.cubeficate(Topology.SIMPLE);
         and.show3D();
 //        {//teste
 //            and.get("j").pos = new int[]{0, 0, 0};
@@ -38,7 +41,6 @@ public class RTLCC {
 //            and.get("vcc").pos = new int[]{4, 4, 4};
 //            and.makePathTo(and.get("j"), and.get("vcc"), Topology.SIMPLE);
 //        }
-
 
         System.out.println("done");
 

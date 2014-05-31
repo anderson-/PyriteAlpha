@@ -24,13 +24,11 @@ public class RTLCC {
 //        and.get("s").pos = new int[]{0, 0, 4};
 //        and.get("vcc").pos = new int[]{4, 0, 4};
 //        and.get("gnd").pos = new int[]{0, 4, 0};
-        and.geneticPlaceComponents(100, 100, Topology.SIMPLE, new CircuitBuilder(){
-
+        and.geneticPlaceComponents(10, 10, Topology.SIMPLE, new CircuitBuilder() {
             @Override
             public Circuit build() {
                 return CLOSE(AND());
             }
-            
         });
         and.cubeficate(Topology.SIMPLE);
         and.show3D();

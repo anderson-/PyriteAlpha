@@ -36,6 +36,8 @@ import org.jenetics.BitChromosome;
 import org.jenetics.BitGene;
 import org.jenetics.GeneticAlgorithm;
 import org.jenetics.Genotype;
+import org.jenetics.IntegerChromosome;
+import org.jenetics.IntegerGene;
 import org.jenetics.Mutator;
 import org.jenetics.NumberStatistics;
 import org.jenetics.Optimize;
@@ -435,7 +437,47 @@ public class Circuit {
     }
 
     private int getVolume() {
-        return 1;
+        int x0 = Integer.MAX_VALUE;
+        int y0 = Integer.MAX_VALUE;
+        int z0 = Integer.MAX_VALUE;
+
+        int x1 = 0;
+        int y1 = 0;
+        int z1 = 0;
+
+        int x, y, z;
+
+        for (Component c : vertices) {
+            if (c.pos == null) {
+                System.err.println("c == null");
+                continue;
+            }
+
+            x = c.pos[0];
+            y = c.pos[1];
+            z = c.pos[2];
+
+            if (x < x0) {
+                x0 = x;
+            }
+            if (x > x1) {
+                x1 = x;
+            }
+            if (y < y0) {
+                y0 = y;
+            }
+            if (y > y1) {
+                y1 = y;
+            }
+            if (z < z0) {
+                z0 = z;
+            }
+            if (z > z1) {
+                z1 = z;
+            }
+        }
+
+        return (x1 - x0) * (y1 - y0) * (z1 - z0);
     }
 
     class Dijkstra {
@@ -792,22 +834,18 @@ public class Circuit {
 
     public int bits = 3;//7
 
-    public int placeComponentsByGenotype(Genotype<BitGene> genotype, Topology t) {
-        BitChromosome ch = ((BitChromosome) genotype.getChromosome());
+    public int placeComponentsByGenotype(Genotype<IntegerGene> genotype, Topology t) {
+        IntegerChromosome ch = ((IntegerChromosome) genotype.getChromosome());
         for (int i = 0; i < vertices.size(); i++) {
             int[] p = new int[3];
             for (int j = 0; j < 3; j++) {
-                p[j] = 0;
-                for (int k = 0; k < bits; k++) {
-                    if (ch.getGene((i * bits * 3) + (j * bits) + k).getBit()) {
-                        p[j] += Math.pow(2, k);
-                    }
-                }
+                p[j] = ch.getGene(i * 3 + j).getAllele();
             }
 
-//            if (!t.isValid(p)) {
-//                return 0;
-//            }
+            if (!t.isValid(p)) {
+                System.out.println(":(");
+                return 0;
+            }
             for (Component w : vertices) {
                 if (w.pos != null && Arrays.equals(w.pos, p)) {
                     return 0;
@@ -819,21 +857,21 @@ public class Circuit {
         return 1;
     }
 
-    static class OneCounter implements Function<Genotype<BitGene>, Integer> {
+    static class CircuitFitnessFunction implements Function<Genotype<IntegerGene>, Integer> {
 
         public int bits;
         public static int count = 0;
         public Topology t;
         public CircuitBuilder cb;
 
-        private OneCounter(Topology t, int bits, CircuitBuilder cb) {
+        private CircuitFitnessFunction(Topology t, int bits, CircuitBuilder cb) {
             this.t = t;
             this.bits = bits;
             this.cb = cb;
         }
 
         @Override
-        public Integer apply(final Genotype<BitGene> genotype) {
+        public Integer apply(final Genotype<IntegerGene> genotype) {
             long time = System.currentTimeMillis();
             Circuit c = cb.build();
             int n1 = c.vertices.size();
@@ -844,8 +882,8 @@ public class Circuit {
             int dc = c.getDisconectedConnections();
             int v = c.getVolume();
             int n2 = c.vertices.size();
-            double p = a * ((1.0 / v + 1.0 / (dc + 1) + 1.0 / (n2 - n1 + 1)) * 1000);
-            System.out.println("done " + count++ + " in " + (System.currentTimeMillis() - time) + " ms, vertices: " + n1 + " -> " + n2 + ", disc: " + dc + " | p: " + p);
+            double p = a * ((2.0 / (v + 1) + 6.0 / (dc + 1) + 2.0 / (n2 - n1 + 1)) * 100000);
+            System.out.println("done " + count++ + " in " + (System.currentTimeMillis() - time) + " ms, vertices: " + n1 + " -> " + n2 + ", disc: " + dc + ", v:" + v + " | p: " + p);
             System.gc();
 
             if (dc == 0) {
@@ -857,30 +895,27 @@ public class Circuit {
     }
 
     public void geneticPlaceComponents(int pop, int gen, Topology t, CircuitBuilder cb) {
-        System.out.println("" + (this.vertices.size()));
-        Factory<Genotype<BitGene>> gtf = Genotype.of(
-                BitChromosome.of(this.vertices.size() * bits * 3, 0.15)
-        );
 
-        OneCounter oneCounter = new OneCounter(t, bits, cb);
+        Factory<Genotype<IntegerGene>> gtf = Genotype.of(IntegerChromosome.of(0, X - 1, vertices.size() * 3));
 
-        Function<Genotype<BitGene>, Integer> ff = oneCounter;
-        GeneticAlgorithm<BitGene, Integer> ga
+        CircuitFitnessFunction cff = new CircuitFitnessFunction(t, bits, cb);
+
+        GeneticAlgorithm<IntegerGene, Integer> ga
                 = new GeneticAlgorithm<>(
-                        gtf, ff, Optimize.MAXIMUM
+                        gtf, cff, Optimize.MAXIMUM
                 );
 
         ga.setStatisticsCalculator(
-                new NumberStatistics.Calculator<BitGene, Integer>()
+                new NumberStatistics.Calculator<IntegerGene, Integer>()
         );
         ga.setPopulationSize(pop);
         ga.setSelectors(
-                new RouletteWheelSelector<BitGene, Integer>()
+                new RouletteWheelSelector<IntegerGene, Integer>()
         );
         ga.setAlterers(
-                new Mutator<BitGene>(0.55),
-                new SinglePointCrossover<BitGene>(0.06),
-                new SwapMutator<BitGene>(0.2)
+                new Mutator<IntegerGene>(0.55),
+                new SinglePointCrossover<IntegerGene>(0.06),
+                new SwapMutator<IntegerGene>(0.2)
         );
 
         ga.setup();

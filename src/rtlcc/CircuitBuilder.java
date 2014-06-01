@@ -50,6 +50,18 @@ public abstract class CircuitBuilder {
         c2.subComponents.add("");
         c2.terminals.add(pin2);
         c2.doneConnections.add(false);
+        
+        c1.fixed();
+        c1.FIXED_connections.add(c2);
+        c1.FIXED_subComponents.add(subComp);
+        c1.FIXED_terminals.add(pin1);
+        c1.FIXED_doneConnections.add(false);
+
+        c2.fixed();
+        c2.FIXED_connections.add(c1);
+        c2.FIXED_subComponents.add("");
+        c2.FIXED_terminals.add(pin2);
+        c2.FIXED_doneConnections.add(false);
     }
 
     public static void set(Component comp, Circuit c) {

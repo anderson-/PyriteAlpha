@@ -458,9 +458,9 @@ public abstract class CircuitBuilder {
         joints[joints.length - 1] += (i - nleds) + ".vcc -> vcc";
         joints[joints.length - 2] += " -> gnd";
 
-//        for (String s : joints) {
-//            System.out.println(s);
-//        }
+        for (String s : joints) {
+            System.out.println(s);
+        }
 
         c = Circuit.union(cs, joints);
 

@@ -30,7 +30,8 @@ public class CircuitDrawingTool {
         }
         g3d.pushMatrix();
         g3d.translate(c.pos[0], c.pos[1], c.pos[2]);
-        g3d.box((c.joint && (c.name == null || (c.name != null && c.name.contains("ex")))) ? .03f : .20f);
+        //g3d.box((c.joint && (c.name == null || (c.name != null && c.name.contains("ex")))) ? .03f : .20f);
+        g3d.box(.20f);
         g3d.popMatrix();
     }
 

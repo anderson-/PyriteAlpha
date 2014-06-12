@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,8 @@ import org.jenetics.SwapMutator;
 import org.jenetics.util.Factory;
 import org.jenetics.util.Function;
 import org.jenetics.util.IO;
+import org.jenetics.util.IndexStream;
+import org.jenetics.util.MSeq;
 import processing.core.PApplet;
 import processing.core.PGraphics;
 import processing.opengl.PGraphics3D;
@@ -66,8 +69,8 @@ import static rtlcc.Topology.Z;
  * @author antunes
  */
 public class Circuit {
-    
-    Random rand = new Random(System.currentTimeMillis());
+
+    Random rand = new Random(1);
     public ArrayList<Component> vertices;
     public ArrayList<Component> inputs;
     public ArrayList<Component> outputs;
@@ -142,8 +145,7 @@ public class Circuit {
             }
             for (Component c : toJoin.get(i)) {
                 if (c1 != null) {
-                    c1.join(c);
-                    c.consume();
+                    c1.joinAndConsume(c);
                 } else {
                     c1 = c;
                 }
@@ -165,6 +167,13 @@ public class Circuit {
             }
         }
 
+        //remove componentes consumidos
+//        for (Iterator<Component> it = nc.vertices.iterator(); it.hasNext();) {
+//            Component comp = it.next();
+//            if (comp.consumed){
+//                it.remove();
+//            }
+//        }
         //adiciona vertices e entradas/saidas (com nome)
         int i = 0;
         for (Circuit c : cset) {
@@ -250,6 +259,12 @@ public class Circuit {
 
         n.ends.add(v);
         n.ends.add(j);
+        if (v.joint) {
+            n.ends.addAll(v.ends);
+        }
+        if (j.joint) {
+            n.ends.addAll(j.ends);
+        }
 
         j.subComponents.set(b, "");
 
@@ -283,7 +298,7 @@ public class Circuit {
             }
 
             ArrayList<int[]> neighborhood = t.getNeighborhood(pos);
-            Collections.shuffle(neighborhood, rand);
+//            Collections.shuffle(neighborhood, rand);
             for (int[] w : neighborhood) {
                 if (cube[w[0]][w[1]][w[2]] == UNVISITED) {
                     queue.add(w);
@@ -440,7 +455,7 @@ public class Circuit {
                 }
             }
         }
-        return dc;
+        return dc / 2;
     }
 
     public int getVolume() {
@@ -456,7 +471,6 @@ public class Circuit {
 
         for (Component c : vertices) {
             if (c.pos == null) {
-                System.err.println("c == null");
                 continue;
             }
 
@@ -487,23 +501,23 @@ public class Circuit {
         return (x1 - x0) * (y1 - y0) * (z1 - z0);
     }
 
-    class Dijkstra {
+    static class Dijkstra {
 
-        int toInt(int x, int y, int z) {
+        static int toInt(int x, int y, int z) {
             int rgb = x;
             rgb = (rgb << 8) + y;
             rgb = (rgb << 8) + z;
             return rgb;
         }
 
-        int toInt(int... i) {
+        static int toInt(int... i) {
             int rgb = i[0];
             rgb = (rgb << 8) + i[1];
             rgb = (rgb << 8) + i[2];
             return rgb;
         }
 
-        int[] toVet(int i) {
+        static int[] toVet(int i) {
             int x = (i >> 16) & 0xFF;
             int y = (i >> 8) & 0xFF;
             int z = i & 0xFF;
@@ -517,14 +531,14 @@ public class Circuit {
         int source = -1;
         int target = -1;
 
-        public void computePaths(int[] source, int[] target, Topology t) {
+        public void computePaths(int[] source, int[] target, Topology t, List<Component> vertices, List<Integer> validShortcuts) {
             this.source = toInt(source);
             this.target = toInt(target);
 
             for (Component c : vertices) {
                 if (c.pos != null) {
                     int i = toInt(c.pos);
-                    if (i != this.source && i != this.target) {
+                    if (i != this.source && i != this.target && !validShortcuts.contains(i)) {
                         distances.put(i, 12000);
                     }
                 }
@@ -604,8 +618,20 @@ public class Circuit {
             int vi = j.connections.indexOf(v);
             int ji = v.connections.indexOf(j);
 
+            if (vi == -1 || ji == -1) {
+                System.out.println("nooooooooooooot" + v.getUID() + " " + j.getUID());
+            }
+
             Dijkstra d = new Dijkstra();
-            d.computePaths(v.pos, j.pos, t);
+
+            ArrayList<Integer> validShortcuts = new ArrayList<>();
+            for (Component c : vertices) {
+                if (c.pos != null && (c == j || (c.joint && c.ends.contains(j)))) {
+                    validShortcuts.add(Dijkstra.toInt(c.pos));
+                }
+            }
+
+            d.computePaths(v.pos, j.pos, t, vertices, validShortcuts);
             List<int[]> directions = null, dt;
             Component f = null;
             for (Component c : vertices) {
@@ -812,7 +838,9 @@ public class Circuit {
         int[][][] cube = new int[X][Y][Z];
         resetCube(cube);
         boolean done = false;
-        while (!done) {
+        int count = 0;
+        while (!done && count < 50) {
+            count++;
             done = true;
             for (int vi = 0; vi < vertices.size(); vi++) {
                 Component v = vertices.get(vi);
@@ -853,23 +881,23 @@ public class Circuit {
 
     public int bits = 3;//7
 
-    public int placeComponentsByGenotype(Genotype<IntegerGene> genotype, Topology t) {
-        IntegerChromosome ch = ((IntegerChromosome) genotype.getChromosome());
+    public void placeComponentsByGenotype(Genotype<IntegerGene> genotype, Topology t) {
+        IntegerChromosome ch;
+        vit:
         for (int i = 0; i < vertices.size(); i++) {
             int[] p = new int[3];
             for (int j = 0; j < 3; j++) {
-                p[j] = ch.getGene(i * 3 + j).getAllele();
+                ch = ((IntegerChromosome) genotype.getChromosome(j));
+                p[j] = ch.getGene(i).getAllele();
             }
-
             for (Component w : vertices) {
                 if (w.pos != null && Arrays.equals(w.pos, p)) {
-                    return 0;
+                    continue vit;
                 }
             }
 
             vertices.get(i).pos = p;
         }
-        return 1;
     }
 
     static class CircuitFitnessFunction implements Function<Genotype<IntegerGene>, Integer> {
@@ -887,53 +915,84 @@ public class Circuit {
 
         @Override
         public Integer apply(final Genotype<IntegerGene> genotype) {
+
             long time = System.currentTimeMillis();
             Circuit c = cb.build();
             int n1 = c.vertices.size();
-            int a = c.placeComponentsByGenotype(genotype, t);
-            if (a == 1) {
-                c.cubeficate(t);
-            } else {
-                return 0;
-            }
+            c.placeComponentsByGenotype(genotype, Topology.SIMPLE3);
+            c.cubeficate(Topology.SIMPLE);
+            c.cubeficate(Topology.SIMPLE2);
+            c.cubeficate(Topology.SIMPLE3);
+            count++;
             int dc = c.getDisconectedConnections();
             int v = c.getVolume();
             int n2 = c.vertices.size();
-            double p = a * ((5.0 / (v + 1) + 80.0 / (dc + 1) + 15.0 / (n2 - n1 + 1)) * 10000);
-            System.out.println("done " + count++ + " in " + (System.currentTimeMillis() - time) + " ms, vertices: " + n1 + " -> " + n2 + ", disc: " + dc + ", v:" + v + " | p: " + p);
+            int p = (n2 - n1) * 10 + dc * 1000 + v;
+            System.out.println("done " + count + " in " + (System.currentTimeMillis() - time) + " ms, vertices: " + n1 + " -> " + n2 + ", disc: " + dc + ", v:" + v + " | p: " + p);
             System.gc();
-            return (int) p;
+            return p;
         }
     }
 
     public void geneticPlaceComponents(int pop, int gen, Topology t, CircuitBuilder cb) {
         int sleepOld = sleep;
         sleep = 0;
-        Factory<Genotype<IntegerGene>> gtf = Genotype.of(IntegerChromosome.of(0, X - 1, vertices.size() * 3));
+
+        ArrayList<IntegerChromosome> list = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            list.add(IntegerChromosome.of(0, X - 1, vertices.size()));
+            list.add(IntegerChromosome.of(0, Y - 1, vertices.size()));
+            list.add(IntegerChromosome.of(0, Z - 1, vertices.size()));
+        }
+
+        Factory<Genotype<IntegerGene>> gtf = Genotype.of(list.toArray(new IntegerChromosome[list.size()]));
 
         CircuitFitnessFunction cff = new CircuitFitnessFunction(t, bits, cb);
 
         GeneticAlgorithm<IntegerGene, Integer> ga
                 = new GeneticAlgorithm<>(
-                        gtf, cff, Optimize.MAXIMUM
+                        gtf, cff, Optimize.MINIMUM
                 );
 
         ga.setStatisticsCalculator(
                 new NumberStatistics.Calculator<IntegerGene, Integer>()
         );
         ga.setPopulationSize(pop);
+
         ga.setSelectors(
                 //new RouletteWheelSelector<IntegerGene, Integer>(),
                 new StochasticUniversalSelector<IntegerGene, Integer>()
         );
         ga.setAlterers(
-                new Mutator<IntegerGene>(0.1),
-                new SinglePointCrossover<IntegerGene>(0.1),
+                //new Mutator<IntegerGene>(0.4),
+                new Mutator<IntegerGene>(0.2) {
+
+                    @Override
+                    protected int mutate(MSeq<IntegerGene> genes, double p) {
+                        final IndexStream stream = IndexStream.Random(genes.length(), p);
+
+                        int alterations = 0;
+                        for (int i = stream.next(); i != -1 && alterations < 3; i = stream.next()) {
+                            IntegerGene ig = genes.get(i);
+                            int v = ig.getAllele();
+                            if (v == ig.getMax()) {
+                                v--;
+                            } else if (v == 0) {
+                                v++;
+                            } else {
+                                v += (rand.nextDouble() > .5) ? 1 : -1;
+                            }
+                            genes.set(i, new IntegerGene(v, ig.getMin(), ig.getMax()));
+                            ++alterations;
+                        }
+                        return alterations;
+                    }
+
+                },
+                //new SinglePointCrossover<IntegerGene>(0.1),
                 new SwapMutator<IntegerGene>(0.1)
         );
-        
-        
-        
+
         ga.setup();
         ga.evolve(gen);
 
@@ -944,6 +1003,7 @@ public class Circuit {
             System.err.println("falha ao gravar população em disco");
         }
         System.out.println(ga.getBestStatistics());
+        System.out.println(ga.getTimeStatistics());
         System.out.println(ga.getBestPhenotype());
         System.out.println("" + (this.vertices.size() * bits));
         placeComponentsByGenotype(ga.getBestPhenotype().getGenotype(), t);
@@ -964,6 +1024,13 @@ public class Circuit {
             int i = 0;
             for (Component e : v.connections) {
                 int eTerm = e.connections.indexOf(v);
+
+                if (eTerm == -1) {
+                    graph.addEdge("err[" + id + "]", e.getUID(), e.getUID());
+                    id++;
+                    i++;
+                    continue;
+                }
 
                 String c1 = v.getUID();
                 String c1t = v.terminals.get(i);

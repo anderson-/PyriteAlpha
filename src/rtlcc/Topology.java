@@ -13,9 +13,9 @@ import java.util.ArrayList;
  */
 public abstract class Topology {
 
-    public static final int X = 6;
-    public static final int Y = X;
-    public static final int Z = X;
+    public static final int X = 10;
+    public static final int Y = 10;
+    public static final int Z = 10;
 
     public static final Topology SIMPLE = new Topology() {
         @Override
@@ -54,12 +54,76 @@ public abstract class Topology {
                         int z = pos[2] + k;
 
                         if (x >= 0 && y >= 0 && z >= 0 && x < X && y < Y && z < Z) {
-                            //if (Math.abs(i) + Math.abs(j) + Math.abs(k) <= 2) { //apenas planos
-                            //if (Math.abs(i) + Math.abs(j) + Math.abs(k) != 0) { //3d
-                            if (Math.abs(i) + Math.abs(j) + Math.abs(k) > 2) {
+                            if (Math.abs(i) + Math.abs(j) + Math.abs(k) <= 2) {
+                                //if (Math.abs(i) + Math.abs(j) + Math.abs(k) > 2) {
                                 nd.add(new int[]{x, y, z});
                             }
                         }
+                    }
+                }
+            }
+            return nd;
+        }
+    };
+
+    public static final Topology SIMPLE3 = new Topology() {
+        @Override
+        public ArrayList<int[]> getNeighborhood(int... pos) {
+            ArrayList<int[]> nd = new ArrayList<>();
+
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    for (int k = -1; k <= 1; k++) {
+                        int x = pos[0] + i;
+                        int y = pos[1] + j;
+                        int z = pos[2] + k;
+
+                        if (x >= 0 && y >= 0 && z >= 0 && x < X && y < Y && z < Z) {
+                            //if (Math.abs(i) + Math.abs(j) + Math.abs(k) <= 2) { //apenas planos
+                            if (Math.abs(i) + Math.abs(j) + Math.abs(k) != 0) { //3d
+                                //if (Math.abs(i) + Math.abs(j) + Math.abs(k) > 2) {
+                                nd.add(new int[]{x, y, z});
+                            }
+                        }
+                    }
+                }
+            }
+            return nd;
+        }
+    };
+
+    public static final Topology SIMPLE4 = new Topology() {
+
+        ArrayList<Boolean> a = new ArrayList<>();
+
+        {
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    for (int k = -1; k <= 1; k++) {
+                        a.add(Math.random() < 0.5);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public ArrayList<int[]> getNeighborhood(int... pos) {
+            ArrayList<int[]> nd = new ArrayList<>();
+
+            int e = 0;
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    for (int k = -1; k <= 1; k++) {
+                        int x = pos[0] + i;
+                        int y = pos[1] + j;
+                        int z = pos[2] + k;
+
+                        if (x >= 0 && y >= 0 && z >= 0 && x < X && y < Y && z < Z) {
+                            if (Math.abs(i) + Math.abs(j) + Math.abs(k) != 0 && a.get(e)) {
+                                nd.add(new int[]{x, y, z});
+                            }
+                        }
+                        e++;
                     }
                 }
             }

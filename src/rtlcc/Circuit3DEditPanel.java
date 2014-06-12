@@ -34,6 +34,7 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
     private PGraphics3D pickerBuffer;
     private ObjectPicker.Selectable<Component> pickerSource;
     private Circuit circuit;
+    private Topology topology = Topology.SIMPLE;
 
     public Circuit3DEditPanel(Circuit circuit) {
         super(800, 600);
@@ -81,22 +82,19 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                     g3d.text(c.getUID() + Arrays.toString(c.pos), 120, 0, 0);
                     g3d.popMatrix();
                 }
-//
-//                //g3d.fill(Color.cyan.getRGB());
-//                g3d.fill(Color.HSBtoRGB(1f / 300 * n.getAddress(), 1, 1));
-//
+
                 for (Component bn : picker) {
                     if (bn.equals(c)) {
                         g3d.fill(Color.blue.getRGB());
                     }
                 }
 
-                g3d.stroke(0);
-
                 int i = 0;
                 for (Component v : c.connections) {
                     if (!c.doneConnections.get(i)) {
                         g3d.stroke(255, 0, 0);
+                    } else {
+                        g3d.stroke(0, 255, 0);
                     }
                     if (v.pos != null) {
                         g3d.line(c.pos[0], c.pos[1], c.pos[2], v.pos[0], v.pos[1], v.pos[2]);
@@ -104,6 +102,10 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                     i++;
                 }
 
+                g3d.stroke(0);
+
+//                g3d.fill(Color.HSBtoRGB((Circuit3DEditPanel.this.circuit.vertices.indexOf(c) / (float) Circuit3DEditPanel.this.circuit.vertices.size()), 1, 1));
+//                g3d.noStroke();
                 super.drawNode(c, g3d);
             }
         };
@@ -140,7 +142,11 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
 
     @Override
     public void draw(PGraphics3D g3d) {
-        g3d.background(140, 170, 255);
+        //g3d.background(140, 170, 255);
+        //g3d.background(18,97,128);
+        //g3d.background(150,200,169);
+        g3d.background(246,217,159);
+        //g3d.background(200);
         defaultDrawer.drawAll(g3d);
     }
 
@@ -201,12 +207,12 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
         if (applet.keyCode == KeyEvent.VK_BACK_SPACE) {
             circuit.reset();
         } else if (applet.keyCode == KeyEvent.VK_ENTER) {
-            System.out.println("cub");
             new Thread() {
                 @Override
                 public void run() {
-                    circuit.cubeficate(Topology.SIMPLE2);
-                    System.out.println("end");
+                    System.out.println("CUB");
+                    circuit.cubeficate(topology);
+                    System.out.println("DONE");
                 }
             }.start();
         } else if (applet.keyCode == KeyEvent.VK_M) {
@@ -226,20 +232,32 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                     }
                 }
             }.start();
-        } else if (applet.keyCode == KeyEvent.VK_9) {
-            System.out.println("GEN");
+        } else if (applet.keyCode == KeyEvent.VK_P) {
             new Thread() {
                 @Override
                 public void run() {
-                    System.out.println("GEN");
-                    circuit.geneticPlaceComponents(10, 2, Topology.SIMPLE2, new CircuitBuilder() {
+                    System.out.println("PLACE");
+                    circuit.geneticPlaceComponents(10, 2, topology, new CircuitBuilder() {
                         @Override
                         public Circuit build() {
-                            return CLOSE(FULL_ADDER());
+                            return CLOSE(XOR());
                         }
                     });
+                    System.out.println("DONE");
                 }
             }.start();
+        } else if (applet.keyCode == KeyEvent.VK_1) {
+            System.out.println("SET: Topology.SIMPLE");
+            topology = Topology.SIMPLE;
+        } else if (applet.keyCode == KeyEvent.VK_2) {
+            System.out.println("SET: Topology.SIMPLE2");
+            topology = Topology.SIMPLE2;
+        } else if (applet.keyCode == KeyEvent.VK_3) {
+            System.out.println("SET: Topology.SIMPLE3");
+            topology = Topology.SIMPLE3;
+        } else if (applet.keyCode == KeyEvent.VK_4) {
+            System.out.println("SET: Topology.SIMPLE4");
+            topology = Topology.SIMPLE4;
         }
 
     }

@@ -65,23 +65,36 @@ public class Component {
         return UID + ((joint) ? "*" : "") + uid;
     }
 
-    void consume() {
+    private void consume() {
         if (joint) {
             consumed = true;
+            fixed = false;
+            pos = null;
         }
     }
 
-    public void join(Component c) {
+    public void joinAndConsume(Component c) {
         if (joint && c.joint) {
+            type = "&";
             for (Component adj : c.connections) {
                 int i = adj.connections.indexOf(c);
                 adj.connections.set(i, this);
+                
+                i = adj.FIXED_connections.indexOf(c);
+                adj.FIXED_connections.set(i, this);
             }
             this.ends.addAll(c.ends);
             this.terminals.addAll(c.terminals);
             this.connections.addAll(c.connections);
             this.subComponents.addAll(c.subComponents);
             this.doneConnections.addAll(c.doneConnections);
+
+            this.FIXED_terminals.addAll(c.FIXED_terminals);
+            this.FIXED_connections.addAll(c.FIXED_connections);
+            this.FIXED_subComponents.addAll(c.FIXED_subComponents);
+            this.FIXED_doneConnections.addAll(c.FIXED_doneConnections);
+            this.fixed = true;
+            c.consume();
         } else {
             throw new IllegalArgumentException("this or c is not joint");
         }

@@ -19,26 +19,29 @@ public class RTLCC {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        Circuit and = CircuitBuilder.FULL_ADDER();
+        Circuit and = CircuitBuilder.AND();
         and = CircuitBuilder.CLOSE(and);
-//        and.show2D();
+        and.reset();
+        and.show2D();
 //        boolean b = true;
 //        while (b) {
 //            teste();
 //        }
 
-//        and.get("s").pos = new int[]{3, 3, 3};
+        and.get("vcc").pos = new int[]{3, 4, 4};
+        and.get("gnd").pos = new int[]{6, 4, 4};
 //        and.get("b").pos = new int[]{4, 0, 0};
 //        and.get("s").pos = new int[]{0, 0, 4};
         
-        and.get("vcc").pos = new int[]{4, 4, 4};
+//        and.get("vcc").pos = new int[]{2, 2, 2};
 //        and.get("gnd").pos = new int[]{0, 4, 0};
-//        and.geneticPlaceComponents(100, 100, Topology.SIMPLE2, new CircuitBuilder() {
-//            @Override
-//            public Circuit build() {
-//                return CLOSE(FULL_ADDER());
-//            }
-//        });
+//        and.show2D();
+        and.geneticPlaceComponents(10, 10, Topology.SIMPLE, new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return CLOSE(AND());
+            }
+        });
 
         Circuit3DEditPanel cep = new Circuit3DEditPanel(and);
         cep.createFrame("oieeee!");
@@ -55,7 +58,7 @@ public class RTLCC {
 //        }
         System.out.println("done");
 
-//        and.show2D();
+//        
     }
 
     int toInt(int x, int y, int z) {
@@ -126,8 +129,8 @@ public class RTLCC {
 
         }
         t = System.currentTimeMillis();
-        for (int i = 0; i < c; i++) {
-            if (toInt(l3.get(i)) == val3) {
+        for (int [] i : l3) {
+            if ((((i[0] << 8 | i[1])<< 8 )|i[2]) == val3) {
                 count++;
             }
         }

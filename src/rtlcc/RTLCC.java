@@ -36,12 +36,13 @@ public class RTLCC {
 //        and.get("vcc").pos = new int[]{2, 2, 2};
 //        and.get("gnd").pos = new int[]{0, 4, 0};
 //        and.show2D();
-        and.geneticPlaceComponents(10, 10, Topology.SIMPLE, new CircuitBuilder() {
-            @Override
-            public Circuit build() {
-                return CLOSE(AND());
-            }
-        });
+        
+//        and.geneticPlaceComponents(10, 10, Topology.SIMPLE, new CircuitBuilder() {
+//            @Override
+//            public Circuit build() {
+//                return CLOSE(AND());
+//            }
+//        });
 
         Circuit3DEditPanel cep = new Circuit3DEditPanel(and);
         cep.createFrame("oieeee!");

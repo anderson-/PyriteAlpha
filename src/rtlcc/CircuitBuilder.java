@@ -38,7 +38,7 @@ public abstract class CircuitBuilder {
 
     public static void connect(Component c1, Component c2, String subComp, String pin1, String pin2) {
         if (subComp.isEmpty()) {
-            subComp = "~";
+//            subComp = "~";
         }
 
         c1.connections.add(c2);
@@ -50,7 +50,7 @@ public abstract class CircuitBuilder {
         c2.subComponents.add("");
         c2.terminals.add(pin2);
         c2.doneConnections.add(false);
-        
+
         c1.fixed();
         c1.FIXED_connections.add(c2);
         c1.FIXED_subComponents.add(subComp);
@@ -62,6 +62,7 @@ public abstract class CircuitBuilder {
         c2.FIXED_subComponents.add("");
         c2.FIXED_terminals.add(pin2);
         c2.FIXED_doneConnections.add(false);
+
     }
 
     public static void set(Component comp, Circuit c) {
@@ -76,7 +77,7 @@ public abstract class CircuitBuilder {
         }
         c.vertices.add(comp);
     }
-    
+
     public abstract Circuit build();
 
     public static Circuit NAND() {
@@ -373,7 +374,7 @@ public abstract class CircuitBuilder {
 
         vcc.name = "vcc";
         set(vcc, c);
-        
+
         gnd.name = "gnd";
         set(gnd, c);
 
@@ -466,6 +467,8 @@ public abstract class CircuitBuilder {
 
         c = Circuit.union(new Circuit[]{c, BATTERY()}, "0.vcc + 1.vcc -> vcc", "0.gnd + 1.gnd -> gnd");
 
+        //c.populateJoints();
+        
         return c;
     }
 

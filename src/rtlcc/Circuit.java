@@ -74,7 +74,7 @@ public class Circuit {
     public ArrayList<Component> vertices;
     public ArrayList<Component> inputs;
     public ArrayList<Component> outputs;
-    private int sleep = 0;
+    public int sleep = 500;
 
     public Circuit() {
         vertices = new ArrayList<>();
@@ -203,7 +203,43 @@ public class Circuit {
         return nc;
     }
 
+    private static void populateJoint(Component j, Component c, int index) {
+        j.ends.add(c);
+        j.endTerminals.add(c.terminals.get(index));
+
+        for (Component a : c.connections) {
+            if (a.joint && !j.ends.contains(a)) {
+                int i = a.connections.indexOf(c);
+                populateJoint(j, a, i);
+            } else {
+                int cai = c.connections.indexOf(a);
+                int aci = a.connections.indexOf(c);
+                //verifica se é um caminho limpo entre C e A(sem componentes)
+                if (c.subComponents.get(cai).isEmpty() && a.subComponents.get(aci).isEmpty()) {
+                    if (!j.ends.contains(a)) {
+                        j.ends.add(a);
+                        j.endTerminals.add(a.terminals.get(aci));
+                    }
+                }
+            }
+        }
+    }
+
+    public void populateJoints() {
+        for (Component c : vertices) {
+            if (c.joint) {
+                for (Component a : c.connections) {
+                    int i = a.connections.indexOf(c);
+                    if (!c.ends.contains(a)) {
+                        populateJoint(c, a, i);
+                    }
+                }
+            }
+        }
+    }
+
     public void decubeficate() {
+        reset();
         for (Component c : vertices) {
             c.pos = null;
         }
@@ -248,31 +284,68 @@ public class Circuit {
         n.type = "ex";
 
         n.connections.add(v);
-        n.subComponents.add(v.subComponents.get(a));
+        n.subComponents.add("");
+//        n.subComponents.add(v.subComponents.get(a));
         n.terminals.add("");
         n.doneConnections.add(true);
 
         n.connections.add(j);
         n.subComponents.add("");
+//        n.subComponents.add(j.subComponents.get(b));
         n.terminals.add("");
         n.doneConnections.add(true);
 
-        n.ends.add(v);
+        n.ends.add(v);//adiciona v
+        n.endTerminals.add(v.terminals.get(a));//adiciona o terminal em v que j está conectado
         n.ends.add(j);
+        n.endTerminals.add(j.terminals.get(b));//adiciona o terminal em j que v está conectado
         if (v.joint) {
             n.ends.addAll(v.ends);
+            n.endTerminals.addAll(v.endTerminals);
         }
         if (j.joint) {
             n.ends.addAll(j.ends);
+            n.endTerminals.addAll(j.endTerminals);
         }
 
-        j.subComponents.set(b, "");
-
+//        v.subComponents.set(a, "");
+//        j.subComponents.set(b, "");
         vertices.add(n);
 
         return n;
     }
 
+//    private void makePathAndPlace(Component v, Component j, Topology t) {
+//
+//        int vi = j.connections.indexOf(v);
+//        int ji = v.connections.indexOf(j);
+//
+//        ArrayList<int[]> neighborhood = t.getNeighborhood(v.pos);
+//        //            Collections.shuffle(neighborhood, rand);
+//        for (int[] w : neighborhood) {
+//            if (countNg(w, t) > j.connections.size()) {
+//                //define a posição de j
+//                j.pos = pos;
+//                cube[j.pos[0]][j.pos[1]][j.pos[2]] = vertices.indexOf(j);
+//
+//                //conecta o caminho
+//                int[] i = ini;
+//                Component n = v;
+//                //System.out.println("place");
+//                //System.out.println(map.containsKey(i) + " " + map.size());
+//                while (map.containsKey(i)) {
+//                    //System.out.println(".");
+//                    i = map.get(i);
+//                    n = expand(n, j);
+//                    n.pos = i;
+//                    cube[i[0]][i[1]][i[2]] = vertices.indexOf(n);
+//                }
+//                v.doneConnections.set(ji, true);
+//                j.doneConnections.set(vi, true);
+//                return;
+//            }
+//        }
+//    }
     private void makePathAndPlace(Component v, Component j, int[][][] cube, Topology t) {
         ArrayDeque<int[]> queue = new ArrayDeque<>();
 //        queue.add(v.pos);
@@ -306,7 +379,14 @@ public class Circuit {
                 }
             }
 
-            if (countNg(cube, pos, t) > j.connections.size()) {
+            int k = cube[pos[0]][pos[1]][pos[2]];
+            if (k >= 0) {
+                if (vertices.get(k).pos != null) {
+                    System.err.println("pessimo erro do mal!");
+                }
+            }
+
+            if (countNg(cube, pos, t) >= j.connections.size()) {
                 //define a posição de j
                 j.pos = pos;
                 cube[j.pos[0]][j.pos[1]][j.pos[2]] = vertices.indexOf(j);
@@ -328,39 +408,6 @@ public class Circuit {
                 return;
             }
         }
-    }
-
-    private void mapToGraph2D(Map<int[], int[]> m) {
-        SparseMultigraph<String, String> graph = new SparseMultigraph<>();
-
-        for (int[] i : m.keySet()) {
-            graph.addVertex(i + "");
-        }
-
-        for (int[] i : m.values()) {
-            graph.addVertex(i + "");
-        }
-
-        int i = 0;
-        for (Entry<int[], int[]> e : m.entrySet()) {
-            graph.addEdge(i + "", e.getKey() + "", e.getValue() + "");
-            i++;
-        }
-
-        Layout<Integer, String> layout = new FRLayout(graph);
-        layout.setSize(new Dimension(1300, 1300));
-        VisualizationViewer<Integer, String> vv = new VisualizationViewer<>(layout);
-        vv.setPreferredSize(new Dimension(350, 350));
-        vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
-        vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller());
-        DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
-        gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
-        vv.setGraphMouse(gm);
-        JFrame frame = new JFrame("Interactive Graph 2D View");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().add(vv);
-        frame.pack();
-        frame.setVisible(true);
     }
 
     public List<int[]> getDirections(int[] sourceNode, int[] destinationNode, Topology t) {
@@ -538,8 +585,12 @@ public class Circuit {
             for (Component c : vertices) {
                 if (c.pos != null) {
                     int i = toInt(c.pos);
-                    if (i != this.source && i != this.target && !validShortcuts.contains(i)) {
-                        distances.put(i, 12000);
+                    if (i != this.source && i != this.target) {
+                        if (!validShortcuts.contains(i)) {
+                            distances.put(i, 12000);
+                        } else {
+                            distances.put(i, 12000);
+                        }
                     }
                 }
             }
@@ -556,12 +607,12 @@ public class Circuit {
                     int v = toInt(vv);
                     Integer distV = distances.get(v);
                     if (distV == null) {
-                        distV = 2000;
+                        distV = 9000;
                     }
 
                     Integer distU = distances.get(u);
                     if (distU == null) {
-                        distU = 2000;
+                        distU = 9000;
                     }
 
                     int distanceThroughU = distU + 1;
@@ -612,11 +663,42 @@ public class Circuit {
 //    return directions;
 //}
 //    
+    boolean isValidShortcut(Component c, Component v, Component j) {
+        //c é valido se eu quero chegar em j
+        if (c.joint) {//só se c for uma junta
+            int i = c.ends.indexOf(j);
+            if (i != -1) {
+                if (j.joint) {//e j também (não importa os terminais)
+                    return true;
+                } else {
+//                    int vi = j.connections.indexOf(v);
+//                    String term = j.terminals.get(vi);
+//                    if (term.isEmpty()) {
+//                        int ji = v.connections.indexOf(j);
+//                        term = v.terminals.get(ji);
+//                    }
+//                    return (c.endTerminals.get(i).equals(term));
+                }
+            }
+        }
+        return false;
+    }
+
     public boolean makePathTo(Component v, Component j, Topology t) {
+        int vi = j.connections.indexOf(v);
+        int ji = v.connections.indexOf(j);
+
+        //se for vizinha
+        for (int[] ng : t.getNeighborhood(v.pos)) {
+            if (Arrays.equals(ng, j.pos)) {
+                v.doneConnections.set(ji, true);
+                j.doneConnections.set(vi, true);
+                return true;
+            }
+        }
+
         try {
             //System.out.println("find");
-            int vi = j.connections.indexOf(v);
-            int ji = v.connections.indexOf(j);
 
             if (vi == -1 || ji == -1) {
                 System.out.println("nooooooooooooot" + v.getUID() + " " + j.getUID());
@@ -624,55 +706,79 @@ public class Circuit {
 
             Dijkstra d = new Dijkstra();
 
-            ArrayList<Integer> validShortcuts = new ArrayList<>();
+            ArrayList<Integer> validShortcutsPos = new ArrayList<>();
+            ArrayList<Component> validShortcuts = new ArrayList<>();
             for (Component c : vertices) {
-                if (c.pos != null && (c == j || (c.joint && c.ends.contains(j)))) {
-                    validShortcuts.add(Dijkstra.toInt(c.pos));
+                if (c.pos != null && isValidShortcut(c, v, j)) {
+                    validShortcutsPos.add(Dijkstra.toInt(c.pos));
+                    validShortcuts.add(c);
                 }
             }
 
-            d.computePaths(v.pos, j.pos, t, vertices, validShortcuts);
+            d.computePaths(v.pos, j.pos, t, vertices, validShortcutsPos);
             List<int[]> directions = null, dt;
             Component f = null;
+            System.out.println("validShortcuts: " + validShortcuts.size());
             for (Component c : vertices) {
-                if (c == j || (c.joint && c.ends.contains(j))) {
+                if (c == j || validShortcuts.contains(c)) {
                     dt = d.getShortestPathTo(c.pos);
-                    if (directions == null || dt.size() < directions.size()) {
+                    System.out.print(dt.size() + ",");
+                    if ((directions == null || dt.size() < directions.size()) && dt.size() > 0) {
                         directions = dt;
                         f = c;
-                        if (directions.size() == 1) {
-                            break;
-                        }
                     }
                 }
             }
+            System.out.println("");
 
-//            if (f.joint) {
-//                System.out.println("joint join");
-//            }
-            boolean x = false;
+            boolean pathExpanded = false;
+            boolean shortcut = false;//foi feito um atalho
 
             if (directions != null) {
+                System.out.println("exp: " + directions.size());
                 Component n = v;
                 for (int[] c : directions) {
                     //System.out.println("*");
                     n = expand(n, j);
                     //definir que todas as juntas compartilham os mesmos ends
                     n.pos = c;
-                    x = true;
+                    pathExpanded = true;
                 }
+
+//                if (f.joint) {
+////                    n.type = "jj";
+////                    f.type = "w";
+//                    int tni = j.connections.indexOf(n);
+//                    int tji = n.connections.indexOf(j);
+//
+//                    //j -/-> n
+//                    j.connections.remove(tni);
+//                    j.subComponents.remove(tni);
+//                    j.terminals.remove(tni);
+//                    j.doneConnections.remove(tni);
+//                    shortcut = true;
+//
+//                    //n -/-> j
+//                    n.connections.remove(tji);
+//                    n.subComponents.remove(tji);
+//                    n.terminals.remove(tji);
+//                    n.doneConnections.remove(tji);
+//
+//                    //n -> f
+//                    n.connections.add(f);
+//                    n.subComponents.add("");
+//                    n.terminals.add("");
+//                    n.doneConnections.add(true);
+//
+//                    //f -> n
+//                    f.connections.add(n);
+//                    f.subComponents.add("");
+//                    f.terminals.add("");
+//                    f.doneConnections.add(true);
+//                }
             }
 
-            if (!x) {
-                for (int[] ng : t.getNeighborhood(v.pos)) {
-                    if (Arrays.equals(ng, j.pos)) {
-                        x = true;
-                        break;
-                    }
-                }
-            }
-
-            if (x) {
+            if (pathExpanded) {
                 v.doneConnections.set(ji, true);
                 j.doneConnections.set(vi, true);
                 return true;
@@ -680,7 +786,6 @@ public class Circuit {
                 return false;
             }
         } catch (Exception e) {
-            //System.out.println("fail");
             e.printStackTrace();
             return false;
         }
@@ -802,18 +907,6 @@ public class Circuit {
         }
     }
 
-    public void clearLastSearch(int[][][] cube) {
-        for (int x = 0; x < X; x++) {
-            for (int y = 0; y < Y; y++) {
-                for (int z = 0; z < Z; z++) {
-                    if (cube[x][y][z] < 0) {
-                        cube[x][y][z] = UNVISITED;
-                    }
-                }
-            }
-        }
-    }
-
     public void sleep() {
         try {
             Thread.sleep(sleep);
@@ -839,7 +932,7 @@ public class Circuit {
         resetCube(cube);
         boolean done = false;
         int count = 0;
-        while (!done && count < 50) {
+        while (!done && count < 500) {
             count++;
             done = true;
             for (int vi = 0; vi < vertices.size(); vi++) {
@@ -854,9 +947,9 @@ public class Circuit {
                              coloca j no lugar mais proximo, com expansão 
                              de caminhos se necessario;
                              */
+                            resetCube(cube);
                             makePathAndPlace(v, j, cube, t);
                             sleep();
-                            clearLastSearch(cube);
                             break;
                         } else {
                             if (!v.doneConnections.get(i)) {
@@ -867,7 +960,7 @@ public class Circuit {
                                 if (makePathTo(v, j, t)) {
                                     sleep();
                                 } else {
-                                    //System.out.println(v.getUID() + " -/-> " + j.getUID());
+                                    System.out.println(v.getUID() + " -/-> " + j.getUID());
                                 }
                                 break;
                             }

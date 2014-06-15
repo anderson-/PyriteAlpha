@@ -30,10 +30,13 @@ public class Component {
     public ArrayList<Component> FIXED_connections;
     public ArrayList<String> FIXED_subComponents;
     public ArrayList<Boolean> FIXED_doneConnections;
+    public ArrayList<Component> FIXED_ends;
+    public ArrayList<String> FIXED_endTerminals;
     //junta
     public final boolean joint;
     public boolean consumed;
     public ArrayList<Component> ends; //componentes conectados à junta
+    public ArrayList<String> endTerminals; //e seus respectivos terminais
     public boolean fixed = false;
 
     public Component() {
@@ -46,6 +49,7 @@ public class Component {
         this.joint = joint;
         if (joint) {
             ends = new ArrayList<>();
+            endTerminals = new ArrayList<>();
         }
     }
 
@@ -84,6 +88,7 @@ public class Component {
                 adj.FIXED_connections.set(i, this);
             }
             this.ends.addAll(c.ends);
+            this.endTerminals.addAll(c.endTerminals);
             this.terminals.addAll(c.terminals);
             this.connections.addAll(c.connections);
             this.subComponents.addAll(c.subComponents);

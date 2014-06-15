@@ -35,6 +35,7 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
     private ObjectPicker.Selectable<Component> pickerSource;
     private Circuit circuit;
     private Topology topology = Topology.SIMPLE;
+    private Thread cubThread = null;
 
     public Circuit3DEditPanel(Circuit circuit) {
         super(800, 600);
@@ -43,10 +44,55 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
             @Override
             public void drawNode(Component c, PGraphics g3d) {
 
-                g3d.stroke(0);
+                boolean printNodeInfo = false;
+                for (Component bn : picker) {
+                    if (bn.equals(c)) {
+                        printNodeInfo = true;
+                        break;
+                    }
+                }
+
+                if (printNodeInfo || true) {
+                    g3d.pushMatrix();
+                    g3d.translate(c.pos[0], c.pos[1], c.pos[2]);
+                    g3d.fill(0);
+                    g3d.scale(DrawingPanel3D.RESET_SCALE / 10);
+                    g3d.textSize(100);
+                    g3d.text(c.getUID() + Arrays.toString(c.pos), 120, 0, 0);
+                    g3d.popMatrix();
+                }
 
                 if (c.type != null) {
-                    g3d.fill(c.type.hashCode() * 2);
+                    switch (c.type) {
+                        case "transistor":
+                            g3d.fill(0);
+                            break;
+                        case "jj":
+                            g3d.fill(Color.magenta.getRGB());
+                            break;
+                        case "j":
+                            g3d.fill(Color.WHITE.getRGB());
+                            break;
+                        case "&":
+                            if (c.name == null) {
+                                g3d.fill(Color.orange.getRGB());
+                            } else {
+                                if (c.name.equals("vcc")) {
+                                    g3d.fill(Color.yellow.getRGB());
+                                } else if (c.name.equals("gnd")) {
+                                    g3d.fill(Color.blue.getRGB());
+                                } else {
+                                    g3d.fill(Color.orange.getRGB());
+                                }
+                            }
+                            break;
+                        case "ex":
+                            g3d.fill(Color.LIGHT_GRAY.getRGB());
+                            break;
+                        case "w":
+                            g3d.fill(Color.CYAN.getRGB());
+                            break;
+                    }
                 } else {
                     g3d.fill(1f, 1, (c.uid * 2 / 360f));
                 }
@@ -65,34 +111,11 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                     }
                 }
 
-                boolean printNodeInfo = false;
-                for (Component bn : picker) {
-                    if (bn.equals(c)) {
-                        printNodeInfo = true;
-                        break;
-                    }
-                }
-
-                if (printNodeInfo) {
-                    g3d.pushMatrix();
-                    g3d.translate(c.pos[0], c.pos[1], c.pos[2]);
-                    g3d.fill(0);
-                    g3d.scale(DrawingPanel3D.RESET_SCALE / 10);
-                    g3d.textSize(100);
-                    g3d.text(c.getUID() + Arrays.toString(c.pos), 120, 0, 0);
-                    g3d.popMatrix();
-                }
-
-                for (Component bn : picker) {
-                    if (bn.equals(c)) {
-                        g3d.fill(Color.blue.getRGB());
-                    }
-                }
-
                 int i = 0;
                 for (Component v : c.connections) {
                     if (!c.doneConnections.get(i)) {
                         g3d.stroke(255, 0, 0);
+                        
                     } else {
                         g3d.stroke(0, 255, 0);
                     }
@@ -103,6 +126,12 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                 }
 
                 g3d.stroke(0);
+
+                for (Component bn : picker) {
+                    if (bn.equals(c)) {
+                        g3d.stroke(Color.blue.getRGB());
+                    }
+                }
 
 //                g3d.fill(Color.HSBtoRGB((Circuit3DEditPanel.this.circuit.vertices.indexOf(c) / (float) Circuit3DEditPanel.this.circuit.vertices.size()), 1, 1));
 //                g3d.noStroke();
@@ -145,7 +174,7 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
         //g3d.background(140, 170, 255);
         //g3d.background(18,97,128);
         //g3d.background(150,200,169);
-        g3d.background(246,217,159);
+        g3d.background(246, 217, 159);
         //g3d.background(200);
         defaultDrawer.drawAll(g3d);
     }
@@ -207,14 +236,19 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
         if (applet.keyCode == KeyEvent.VK_BACK_SPACE) {
             circuit.reset();
         } else if (applet.keyCode == KeyEvent.VK_ENTER) {
-            new Thread() {
+            cubThread = new Thread() {
                 @Override
                 public void run() {
-                    System.out.println("CUB");
-                    circuit.cubeficate(topology);
-                    System.out.println("DONE");
+                    try {
+                        System.out.println("CUB");
+                        circuit.cubeficate(topology);
+                        System.out.println("DONE");
+                    } catch (ThreadDeath e) {
+                        System.out.println("KILLED");
+                    }
                 }
-            }.start();
+            };
+            cubThread.start();
         } else if (applet.keyCode == KeyEvent.VK_M) {
             new Thread() {
                 @Override
@@ -232,6 +266,12 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                     }
                 }
             }.start();
+        } else if (applet.keyCode == KeyEvent.VK_X) {
+            cubThread.stop();
+        } else if (applet.keyCode == KeyEvent.VK_R) {
+            circuit.decubeficate();
+            circuit.get("vcc").pos = new int[]{3, 4, 4};
+            circuit.get("gnd").pos = new int[]{6, 4, 4};
         } else if (applet.keyCode == KeyEvent.VK_P) {
             new Thread() {
                 @Override

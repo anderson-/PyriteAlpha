@@ -70,11 +70,14 @@ import static rtlcc.Topology.Z;
  */
 public class Circuit {
 
-    Random rand = new Random(1);
     public ArrayList<Component> vertices;
     public ArrayList<Component> inputs;
     public ArrayList<Component> outputs;
-    public int sleep = 500;
+    public static int sleep = 100;
+    public static boolean chain = false;
+    public static long seed = 1;
+    public static Random rand = new Random();
+    public static boolean shuffleNg = false;
 
     public Circuit() {
         vertices = new ArrayList<>();
@@ -312,6 +315,8 @@ public class Circuit {
 //        j.subComponents.set(b, "");
         vertices.add(n);
 
+        sleep();
+
         return n;
     }
 
@@ -371,7 +376,9 @@ public class Circuit {
             }
 
             ArrayList<int[]> neighborhood = t.getNeighborhood(pos);
-//            Collections.shuffle(neighborhood, rand);
+            if (shuffleNg) {
+                Collections.shuffle(neighborhood, rand);
+            }
             for (int[] w : neighborhood) {
                 if (cube[w[0]][w[1]][w[2]] == UNVISITED) {
                     queue.add(w);
@@ -495,7 +502,7 @@ public class Circuit {
 
     public int getDisconectedConnections() {
         int dc = 0;
-        for (Component c : vertices) {
+        for (Component c : (ArrayList<Component>) vertices.clone()) {
             for (boolean b : c.doneConnections) {
                 if (!b) {
                     dc++;
@@ -545,7 +552,7 @@ public class Circuit {
             }
         }
 
-        return (x1 - x0) * (y1 - y0) * (z1 - z0);
+        return (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
     }
 
     static class Dijkstra {
@@ -671,6 +678,7 @@ public class Circuit {
                 if (j.joint) {//e j também (não importa os terminais)
                     return true;
                 } else {
+
 //                    int vi = j.connections.indexOf(v);
 //                    String term = j.terminals.get(vi);
 //                    if (term.isEmpty()) {
@@ -927,12 +935,20 @@ public class Circuit {
     }
 
     public void cubeficate(Topology t) {
+        if (shuffleNg){
+            rand.setSeed(seed);
+        }
+        
         //guarda a posição no vetor vertices
         int[][][] cube = new int[X][Y][Z];
         resetCube(cube);
         boolean done = false;
         int count = 0;
-        while (!done && count < 500) {
+        while (!done) {
+            if (count > 500) {
+                System.out.println("I'M DONE!!!!500");
+                break;
+            }
             count++;
             done = true;
             for (int vi = 0; vi < vertices.size(); vi++) {
@@ -950,7 +966,9 @@ public class Circuit {
                             resetCube(cube);
                             makePathAndPlace(v, j, cube, t);
                             sleep();
-                            break;
+                            if (!chain) {
+                                break;
+                            }
                         } else {
                             if (!v.doneConnections.get(i)) {
                                 /*
@@ -962,7 +980,9 @@ public class Circuit {
                                 } else {
                                     System.out.println(v.getUID() + " -/-> " + j.getUID());
                                 }
-                                break;
+                                if (!chain) {
+                                    break;
+                                }
                             }
                         }
                         i++;
@@ -975,6 +995,7 @@ public class Circuit {
     public int bits = 3;//7
 
     public void placeComponentsByGenotype(Genotype<IntegerGene> genotype, Topology t) {
+        decubeficate();
         IntegerChromosome ch;
         vit:
         for (int i = 0; i < vertices.size(); i++) {
@@ -1020,11 +1041,16 @@ public class Circuit {
             int dc = c.getDisconectedConnections();
             int v = c.getVolume();
             int n2 = c.vertices.size();
-            int p = (n2 - n1) * 10 + dc * 1000 + v;
+            int p = fitnessFunction(n1, n2, dc, v);
             System.out.println("done " + count + " in " + (System.currentTimeMillis() - time) + " ms, vertices: " + n1 + " -> " + n2 + ", disc: " + dc + ", v:" + v + " | p: " + p);
             System.gc();
             return p;
         }
+    }
+
+    public static int fitnessFunction(int minNodes, int nodes, int disconected, int volume) {
+        int p = disconected * 100000 + (nodes - minNodes) * 1000 + volume;
+        return p;
     }
 
     public void geneticPlaceComponents(int pop, int gen, Topology t, CircuitBuilder cb) {
@@ -1053,8 +1079,9 @@ public class Circuit {
         ga.setPopulationSize(pop);
 
         ga.setSelectors(
-                //new RouletteWheelSelector<IntegerGene, Integer>(),
-                new StochasticUniversalSelector<IntegerGene, Integer>()
+                new RouletteWheelSelector<IntegerGene, Integer>()
+        //,
+        //new StochasticUniversalSelector<IntegerGene, Integer>()
         );
         ga.setAlterers(
                 //new Mutator<IntegerGene>(0.4),

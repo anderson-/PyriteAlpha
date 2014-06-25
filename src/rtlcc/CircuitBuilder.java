@@ -14,29 +14,87 @@ public abstract class CircuitBuilder {
     public static final int INPUT = 2;
     public static final int OUTPUT = 4;
 
-//    private final Circuit c;
-//
-//    public CircuitBuilder(Circuit c) {
-//        this.c = c;
-//    }
-//
-//    public void goTo() {
-//
-//    }
-    //
-    public static void connect(Component c1, Component c2) {
+    public static final CircuitBuilder SIMPLE_AND;
+    public static final CircuitBuilder SIMPLE_OR;
+    public static final CircuitBuilder SIMPLE_XOR;
+    public static final CircuitBuilder SIMPLE_FULL_ADDER;
+
+    public static final CircuitBuilder AND;
+    public static final CircuitBuilder OR;
+    public static final CircuitBuilder XOR;
+    public static final CircuitBuilder FULL_ADDER;
+
+    static {
+        SIMPLE_AND = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return AND();
+            }
+        };
+
+        SIMPLE_OR = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return OR();
+            }
+        };
+
+        SIMPLE_XOR = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return XOR();
+            }
+        };
+
+        SIMPLE_FULL_ADDER = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return FULL_ADDER();
+            }
+        };
+
+        AND = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return CLOSE(AND());
+            }
+        };
+
+        OR = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return CLOSE(OR());
+            }
+        };
+
+        XOR = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return CLOSE(XOR());
+            }
+        };
+
+        FULL_ADDER = new CircuitBuilder() {
+            @Override
+            public Circuit build() {
+                return CLOSE(FULL_ADDER());
+            }
+        };
+    }
+
+    protected static void connect(Component c1, Component c2) {
         connect(c1, c2, "", "", "");
     }
 
-    public static void connect(Component c1, Component c2, String subComp) {
+    protected static void connect(Component c1, Component c2, String subComp) {
         connect(c1, c2, subComp, "", "");
     }
 
-    public static void connect(Component c1, Component c2, String subComp, String pin1) {
+    protected static void connect(Component c1, Component c2, String subComp, String pin1) {
         connect(c1, c2, subComp, pin1, "");
     }
 
-    public static void connect(Component c1, Component c2, String subComp, String pin1, String pin2) {
+    protected static void connect(Component c1, Component c2, String subComp, String pin1, String pin2) {
         if (subComp.isEmpty()) {
 //            subComp = "~";
         }
@@ -65,11 +123,11 @@ public abstract class CircuitBuilder {
 
     }
 
-    public static void set(Component comp, Circuit c) {
+    protected static void set(Component comp, Circuit c) {
         set(comp, c, 0);
     }
 
-    public static void set(Component comp, Circuit c, int type) {
+    protected static void set(Component comp, Circuit c, int type) {
         if (type == INPUT) {
             c.inputs.add(comp);
         } else if (type == OUTPUT) {
@@ -80,7 +138,7 @@ public abstract class CircuitBuilder {
 
     public abstract Circuit build();
 
-    public static Circuit NAND() {
+    protected Circuit NAND() {
         Circuit c = new Circuit();
 
         Component a = new Component(true);
@@ -126,7 +184,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit AND() {
+    protected Circuit AND() {
         Circuit c = new Circuit();
 
         Component a = new Component(true);
@@ -172,7 +230,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit OR() {
+    protected Circuit OR() {
         Circuit c = new Circuit();
 
         Component a = new Component(true);
@@ -227,7 +285,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit NOR() {
+    protected Circuit NOR() {
         Circuit c = new Circuit();
 
         Component a = new Component(true);
@@ -282,7 +340,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit XOR() {
+    protected Circuit XOR() {
         Circuit c = new Circuit();
 
         Component a = new Component(true);
@@ -343,7 +401,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit FULL_ADDER() {
+    protected Circuit FULL_ADDER() {
         Circuit c0 = XOR();
         Circuit c1 = XOR();
         Circuit c2 = AND();
@@ -365,7 +423,7 @@ public abstract class CircuitBuilder {
         return fa;
     }
 
-    public static Circuit BUTTON() {
+    protected Circuit BUTTON() {
         Circuit c = new Circuit();
 
         Component vcc = new Component(true);
@@ -387,7 +445,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit BATTERY() {
+    protected Circuit BATTERY() {
         Circuit c = new Circuit();
 
         Component vcc = new Component(true);
@@ -404,7 +462,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit LED() {
+    protected Circuit LED() {
         Circuit c = new Circuit();
 
         Component gnd = new Component(true);
@@ -426,7 +484,7 @@ public abstract class CircuitBuilder {
         return c;
     }
 
-    public static Circuit CLOSE(Circuit c) {
+    protected Circuit CLOSE(Circuit c) {
 
         int nbtns = c.inputs.size();
         int nleds = c.outputs.size();
@@ -467,8 +525,8 @@ public abstract class CircuitBuilder {
 
         c = Circuit.union(new Circuit[]{c, BATTERY()}, "0.vcc + 1.vcc -> vcc", "0.gnd + 1.gnd -> gnd");
 
-        //c.populateJoints();
-        
+        c.populateJoints();
+
         return c;
     }
 
@@ -478,7 +536,7 @@ public abstract class CircuitBuilder {
 //
 //        }
 //    }
-    public static Circuit NAND4() {
+    protected Circuit NAND4() {
         Circuit a = NAND();
         Circuit b = NAND();
         Circuit c = NAND();

@@ -97,17 +97,22 @@ public abstract class Topology {
         ArrayList<Boolean> a = new ArrayList<>();
 
         {
-            for (int i = -1; i <= 1; i++) {
-                for (int j = -1; j <= 1; j++) {
-                    for (int k = -1; k <= 1; k++) {
-                        a.add(Math.random() < 0.5);
-                    }
-                }
-            }
+            getNeighborhood(0, 0, 0, 0);
         }
 
         @Override
         public ArrayList<int[]> getNeighborhood(int... pos) {
+            if (pos.length > 3) {
+                a.clear();
+                for (int i = -1; i <= 1; i++) {
+                    for (int j = -1; j <= 1; j++) {
+                        for (int k = -1; k <= 1; k++) {
+                            a.add(Circuit.rand.nextBoolean());
+                        }
+                    }
+                }
+            }
+
             ArrayList<int[]> nd = new ArrayList<>();
 
             int e = 0;

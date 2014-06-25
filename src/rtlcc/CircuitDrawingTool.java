@@ -18,9 +18,9 @@ import quickp3d.DrawingPanel3D;
  */
 public class CircuitDrawingTool {
 
-    private final Circuit circuit;
+    private Circuit circuit = null;
 
-    public CircuitDrawingTool(Circuit circuit) {
+    public void setCircuit(Circuit circuit) {
         this.circuit = circuit;
     }
 
@@ -36,9 +36,11 @@ public class CircuitDrawingTool {
     }
 
     public void drawAll(PGraphics g3d) {
-        for (Component c : (ArrayList<Component>) circuit.vertices.clone()) {
-            if (c.pos != null) {
-                drawNode(c, g3d);
+        if (circuit != null) {
+            for (Component c : (ArrayList<Component>) circuit.vertices.clone()) {
+                if (c.pos != null) {
+                    drawNode(c, g3d);
+                }
             }
         }
     }

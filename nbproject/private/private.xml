@@ -5,12 +5,12 @@
             <url>src/rtlcc/CircuitBuilder.java</url>
             <bookmark id="2">
                 <name/>
-                <line>47</line>
+                <line>105</line>
                 <key/>
             </bookmark>
             <bookmark id="1">
                 <name/>
-                <line>163</line>
+                <line>222</line>
                 <key/>
             </bookmark>
         </file>
@@ -18,7 +18,7 @@
             <url>src/rtlcc/Circuit.java</url>
             <bookmark id="3">
                 <name/>
-                <line>1089</line>
+                <line>1122</line>
                 <key/>
             </bookmark>
         </file>
@@ -30,7 +30,7 @@
             <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/Topology.java</file>
             <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/Circuit3DEditPanel.java</file>
             <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/CircuitBuilder.java</file>
-            <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/Component.java</file>
+            <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/ConfigurationPanel.java</file>
             <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/Circuit.java</file>
         </group>
     </open-files>

@@ -7,20 +7,14 @@ package rtlcc;
 
 import com.jogamp.newt.event.KeyEvent;
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.Arrays;
 import processing.core.PApplet;
-import static processing.core.PConstants.DOWN;
-import static processing.core.PConstants.LEFT;
-import static processing.core.PConstants.RIGHT;
-import static processing.core.PConstants.UP;
 import processing.core.PGraphics;
-import processing.core.PImage;
 import processing.opengl.PGraphics3D;
 import quickp3d.DrawingPanel3D;
 import quickp3d.simplegraphics.Axis;
 import quickp3d.tools.ObjectPicker;
-import static rtlcc.CircuitBuilder.CLOSE;
-import static rtlcc.CircuitBuilder.FULL_ADDER;
 
 /**
  *
@@ -34,13 +28,29 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
     private PGraphics3D pickerBuffer;
     private ObjectPicker.Selectable<Component> pickerSource;
     private Circuit circuit;
+    private CircuitBuilder circuitBuilder;
     private Topology topology = Topology.SIMPLE;
     private Thread cubThread = null;
+    private ArrayList<String> messages = new ArrayList<>();
+    private Thread placeThread = null;
 
-    public Circuit3DEditPanel(Circuit circuit) {
+    public int pop = 10;
+    public int gen = 10;
+
+    public Circuit3DEditPanel(CircuitBuilder cb) {
         super(800, 600);
-        this.circuit = circuit;
-        defaultDrawer = new CircuitDrawingTool(this.circuit) {
+
+        eyeZ = 1150;
+        atX = 0;
+        atY = -200;
+        atZ = 648;
+        upX = 0;
+        upY = 1;
+        posX = -400;
+        posY = -620;
+        theta = 500;
+
+        defaultDrawer = new CircuitDrawingTool() {
             @Override
             public void drawNode(Component c, PGraphics g3d) {
 
@@ -97,6 +107,22 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                     g3d.fill(1f, 1, (c.uid * 2 / 360f));
                 }
 
+                int i = 0;
+                for (Component v : c.connections) {
+                    if (!c.doneConnections.get(i)) {
+                        g3d.stroke(255, 0, 0);
+                        if (v.pos != null) {
+                            drawDashedLine(g3d, c.pos[0], c.pos[1], c.pos[2], v.pos[0], v.pos[1], v.pos[2]);
+                        }
+                    } else {
+                        g3d.stroke(0, 255, 0);
+                        if (v.pos != null) {
+                            g3d.line(c.pos[0], c.pos[1], c.pos[2], v.pos[0], v.pos[1], v.pos[2]);
+                        }
+                    }
+                    i++;
+                }
+
                 for (Component v : c.connections) {
                     if (v.pos == null) {
                         g3d.stroke(0, 255, 0);
@@ -106,27 +132,12 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
 
                 for (boolean b : c.doneConnections) {
                     if (!b) {
-                        g3d.fill(255, 0, 0);
+                        g3d.stroke(255, 0, 0);
                         break;
                     }
                 }
 
-                int i = 0;
-                for (Component v : c.connections) {
-                    if (!c.doneConnections.get(i)) {
-                        g3d.stroke(255, 0, 0);
-                        
-                    } else {
-                        g3d.stroke(0, 255, 0);
-                    }
-                    if (v.pos != null) {
-                        g3d.line(c.pos[0], c.pos[1], c.pos[2], v.pos[0], v.pos[1], v.pos[2]);
-                    }
-                    i++;
-                }
-
-                g3d.stroke(0);
-
+                //g3d.stroke(0);
                 for (Component bn : picker) {
                     if (bn.equals(c)) {
                         g3d.stroke(Color.blue.getRGB());
@@ -137,9 +148,10 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
 //                g3d.noStroke();
                 super.drawNode(c, g3d);
             }
+
         };
 
-        pickerBufferDrawer = new CircuitDrawingTool(circuit) {
+        pickerBufferDrawer = new CircuitDrawingTool() {
             @Override
             public void drawNode(Component c, PGraphics g3d) {
                 g3d.fill(picker.getColor(Circuit3DEditPanel.this.circuit.vertices.indexOf(c)));
@@ -158,6 +170,30 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                 }
             }
         };
+        setCircuitBuilder(cb);
+    }
+
+    public Circuit3DEditPanel() {
+        this(null);
+    }
+
+    public final void setCircuitBuilder(CircuitBuilder cb) {
+        this.circuitBuilder = cb;
+        if (cb != null) {
+            circuit = cb.build();
+        } else {
+            circuit = null;
+        }
+        defaultDrawer.setCircuit(circuit);
+        pickerBufferDrawer.setCircuit(circuit);
+    }
+
+    public CircuitBuilder getCircuitBuilder() {
+        return circuitBuilder;
+    }
+
+    public Circuit getCircuit() {
+        return circuit;
     }
 
     @Override
@@ -181,17 +217,53 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
 
     @Override
     public void draw(PGraphics g2d) {
-        int unc = 0;
-        int con = 0;
+        int plc = 0;
+        int n = 0;
         for (Component c : circuit.vertices) {
-            unc += (c.pos == null) ? 1 : 0;
-            unc += (c.consumed) ? 1 : 0;
+            plc += (c.pos == null) ? 1 : 0;
+            n += (c.fixed) ? 1 : 0;
         }
         g2d.clear();
         g2d.fill(0);
         g2d.textSize(15);
+        //top info
+        g2d.textAlign = PApplet.LEFT;
+        int x = 10;
+        int y = 15;
+        g2d.text("Connections missing: " + circuit.getDisconectedConnections(), x, y);
+        y += 15;
+        g2d.text("Nodes placed: " + (circuit.vertices.size() - plc), x, y);
+        y += 15;
+        g2d.text("Nodes unplaced: " + plc, x, y);
+        y += 15;
+        g2d.text("Nodes total: " + circuit.vertices.size(), x, y);
+        y += 15;
+        g2d.text("Volume: " + circuit.getVolume(), x, y);
+        y += 15;
+        int p = Circuit.fitnessFunction(n, circuit.vertices.size(), circuit.getDisconectedConnections(), circuit.getVolume());
+        g2d.text("Points: " + p, x, y);
+        y += 15;
+        g2d.text("P: " + eyeZ + " " + atX + " " + atY + " " + atZ + " " + upX + " " + upY + " " + posX + " " + posY + " " + theta, x, y);
+        //bottom info
         g2d.textAlign = PApplet.RIGHT;
-        g2d.text("nodes: " + circuit.vertices.size() + " unc: " + circuit.getDisconectedConnections() + " vol: " + circuit.getVolume() + " con:" + con, g2d.width - 30, g2d.height - 40);
+        y = 25;
+        for (String m : messages) {
+            y += 15;
+            g2d.text(m, g2d.width - x, g2d.height - y);
+        }
+    }
+
+    public int print(String m) {
+        messages.add(m);
+        while (messages.size() > 8) {
+            messages.remove(0);
+        }
+        return messages.size() - 1;
+    }
+
+    public int print(int i, String m) {
+        messages.set(i, m);
+        return i;
     }
 
     @Override
@@ -212,22 +284,18 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                 continue;
             }
             switch (applet.keyCode) {
-                case KeyEvent.VK_L:
-                    c.pos[0]++;
-                    break;
                 case KeyEvent.VK_J:
-                    c.pos[0]--;
+                    c.pos[0] += left().x;
+                    c.pos[1] += left().y;
+                    break;
+                case KeyEvent.VK_L:
+                    c.pos[0] += right().x;
+                    c.pos[1] += right().y;
                     break;
                 case KeyEvent.VK_I:
-                    c.pos[1]++;
-                    break;
-                case KeyEvent.VK_K:
-                    c.pos[1]--;
-                    break;
-                case KeyEvent.VK_U:
                     c.pos[2]++;
                     break;
-                case KeyEvent.VK_O:
+                case KeyEvent.VK_K:
                     c.pos[2]--;
                     break;
             }
@@ -236,19 +304,23 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
         if (applet.keyCode == KeyEvent.VK_BACK_SPACE) {
             circuit.reset();
         } else if (applet.keyCode == KeyEvent.VK_ENTER) {
-            cubThread = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        System.out.println("CUB");
-                        circuit.cubeficate(topology);
-                        System.out.println("DONE");
-                    } catch (ThreadDeath e) {
-                        System.out.println("KILLED");
+            if (cubThread == null || !cubThread.isAlive()) {
+                cubThread = new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            int i = print("cubeficating...");
+                            circuit.cubeficate(topology);
+                            print(i, "cubeficating... done.");
+                        } catch (ThreadDeath e) {
+                            print("break");
+                        }
                     }
-                }
-            };
-            cubThread.start();
+                };
+                cubThread.start();
+            } else {
+                //print("cubefication not done!");
+            }
         } else if (applet.keyCode == KeyEvent.VK_M) {
             new Thread() {
                 @Override
@@ -266,39 +338,103 @@ public class Circuit3DEditPanel extends DrawingPanel3D {
                     }
                 }
             }.start();
+        } else if (applet.keyCode == KeyEvent.VK_G) {
+            circuit.show2D();
         } else if (applet.keyCode == KeyEvent.VK_X) {
-            cubThread.stop();
+            if (cubThread != null && cubThread.isAlive()) {
+                cubThread.stop();
+            }
+            if (placeThread != null && placeThread.isAlive()) {
+                placeThread.stop();
+            }
         } else if (applet.keyCode == KeyEvent.VK_R) {
             circuit.decubeficate();
             circuit.get("vcc").pos = new int[]{3, 4, 4};
             circuit.get("gnd").pos = new int[]{6, 4, 4};
         } else if (applet.keyCode == KeyEvent.VK_P) {
-            new Thread() {
-                @Override
-                public void run() {
-                    System.out.println("PLACE");
-                    circuit.geneticPlaceComponents(10, 2, topology, new CircuitBuilder() {
-                        @Override
-                        public Circuit build() {
-                            return CLOSE(XOR());
+            if (placeThread == null || !placeThread.isAlive()) {
+                placeThread = new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            final int i = print("placing components...");
+                            final int tpop = pop;
+                            final int tgen = gen;
+                            circuit.geneticPlaceComponents(tpop, tgen, topology, circuitBuilder);
+                            //                                    new CircuitBuilder() {
+                            //                                int x = 0;
+                            //                                int w = 0;
+                            //
+                            //                                @Override
+                            //                                public Circuit build() {
+                            //                                    x++;
+                            //                                    if (x > w) {
+                            //                                        w = x;
+                            //                                        print(i, "placing components... " + (tpop * tgen - x));
+                            //                                    }
+                            //
+                            //                                    return FULL_ADDER();
+                            //                                }
+                            //                            }
+                            print(i, "placing components... done.");
+                        } catch (ThreadDeath e) {
+                            print("break");
                         }
-                    });
-                    System.out.println("DONE");
-                }
-            }.start();
+                    }
+                };
+                placeThread.start();
+            }
+        } else if (applet.keyCode == KeyEvent.VK_T) {
+            if (Circuit.sleep == 0) {
+                Circuit.sleep = 10;
+            } else {
+                Circuit.sleep = 0;
+            }
+            print("Set timestep = " + Circuit.sleep + " ms");
         } else if (applet.keyCode == KeyEvent.VK_1) {
-            System.out.println("SET: Topology.SIMPLE");
+            print("SET: Topology.SIMPLE");
             topology = Topology.SIMPLE;
         } else if (applet.keyCode == KeyEvent.VK_2) {
-            System.out.println("SET: Topology.SIMPLE2");
+            print("SET: Topology.SIMPLE2");
             topology = Topology.SIMPLE2;
         } else if (applet.keyCode == KeyEvent.VK_3) {
-            System.out.println("SET: Topology.SIMPLE3");
+            print("SET: Topology.SIMPLE3");
             topology = Topology.SIMPLE3;
         } else if (applet.keyCode == KeyEvent.VK_4) {
-            System.out.println("SET: Topology.SIMPLE4");
+            print("SET: Topology.SIMPLE4");
             topology = Topology.SIMPLE4;
         }
 
+    }
+
+    public static void drawDotedLine(PGraphics g3d, float x0, float y0, float z0, float x1, float y1, float z1) {
+        float d = (float) Math.sqrt((x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1) + (z0 - z1) * (z0 - z1));
+        int s = 100;
+        float x, y, z, t = 0;
+        for (; t <= 1;) {
+            x = (1 - t) * x0 + t * x1;
+            y = (1 - t) * y0 + t * y1;
+            z = (1 - t) * z0 + t * z1;
+            g3d.point(x, y, z);
+            t += 1f / s;
+        }
+    }
+
+    public static void drawDashedLine(PGraphics g3d, float x0, float y0, float z0, float x1, float y1, float z1) {
+        float d = (float) Math.sqrt((x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1) + (z0 - z1) * (z0 - z1));
+        float s = d / 0.1f; //[0.01-0.12]
+        float x, y, z, t = 0;
+        float a, b, c;
+        for (; t <= 1;) {
+            x = (1 - t) * x0 + t * x1;
+            y = (1 - t) * y0 + t * y1;
+            z = (1 - t) * z0 + t * z1;
+            t += 1f / s;
+            a = (1 - t) * x0 + t * x1;
+            b = (1 - t) * y0 + t * y1;
+            c = (1 - t) * z0 + t * z1;
+            t += 2f / s;
+            g3d.line(x, y, z, a, b, c);
+        }
     }
 }

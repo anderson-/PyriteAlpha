@@ -6,6 +6,7 @@
 package rtlcc;
 
 import edu.uci.ics.jung.algorithms.layout.FRLayout;
+import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
@@ -63,6 +64,7 @@ import quickp3d.simplegraphics.Axis;
 import static rtlcc.Topology.X;
 import static rtlcc.Topology.Y;
 import static rtlcc.Topology.Z;
+import rtlcc.toml.impl.Toml;
 
 /**
  *
@@ -78,11 +80,49 @@ public class Circuit {
     public static long seed = 1;
     public static Random rand = new Random();
     public static boolean shuffleNg = false;
+    public static boolean optimize = false;
 
     public Circuit() {
         vertices = new ArrayList<>();
         inputs = new ArrayList<>();
         outputs = new ArrayList<>();
+    }
+
+    public String save() {
+        POJO p = new POJO();
+        p.pos = new ArrayList<>();
+        p.names = new ArrayList<>();
+        for (Component c : vertices) {
+            if (c.pos != null) {
+                p.names.add(c.getUID());
+                ArrayList<Long> pos = new ArrayList<>();
+                pos.add(new Long(c.pos[0]));
+                pos.add(new Long(c.pos[1]));
+                pos.add(new Long(c.pos[2]));
+                p.pos.add(pos);
+            }
+        }
+        return Toml.serialize("circuit", p);
+    }
+
+    public void load(String str) {
+
+        str = "[circuit]\n"
+                + "pos = [[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 1], [0, 1, 1], [1, 0, 2], [0, 0, 1], [1, 0, 1], [1, 1, 2], [0, 0, 2], [0, 0, 0], [1, 1, 1], [0, 0, 1], [0, 1, 1]]\n"
+                + "names = [\"&*65\", \"j1*66\", \"j2*67\", \"j3*68\", \"j4*69\", \"vcc*70\", \"gnd*71\", \"transistor72\", \"&*74\", \"&*77\", \"j*80\", \"ex*100\", \"ex*101\", \"ex*102\"]";
+
+        Toml parser = Toml.parse(str);
+        POJO p = parser.getAs("circuit", POJO.class);
+        for (int i = 0; i < p.names.size(); i++) {
+            for (Component c : vertices) {
+                if (c.getUID().equals(p.names.get(i))) {
+                    c.pos = new int[3];
+                    c.pos[0] = p.pos.get(i).get(0).intValue();
+                    c.pos[1] = p.pos.get(i).get(1).intValue();
+                    c.pos[2] = p.pos.get(i).get(2).intValue();
+                }
+            }
+        }
     }
 
     public Component get(String name) {
@@ -351,6 +391,33 @@ public class Circuit {
 //            }
 //        }
 //    }
+    private void placeNg(Component v, Component j, int[][][] cube, Topology t) {
+        ArrayDeque<int[]> queue = new ArrayDeque<>();
+
+        ArrayList<int[]> neighborhood = t.getNeighborhood(v.pos);
+        if (shuffleNg) {
+            Collections.shuffle(neighborhood, rand);
+        }
+        for (int[] w : neighborhood) {
+            if (cube[w[0]][w[1]][w[2]] == UNVISITED) {
+                queue.add(w);
+            }
+        }
+
+        int[] pos;
+        while (!queue.isEmpty()) {
+            pos = queue.remove();
+            if (countNg(cube, pos, t) >= j.connections.size()) {
+                j.pos = pos;
+                cube[j.pos[0]][j.pos[1]][j.pos[2]] = vertices.indexOf(j);
+                int vi = j.connections.indexOf(v);
+                int ji = v.connections.indexOf(j);
+                v.doneConnections.set(ji, true);
+                j.doneConnections.set(vi, true);
+            }
+        }
+    }
+
     private void makePathAndPlace(Component v, Component j, int[][][] cube, Topology t) {
         ArrayDeque<int[]> queue = new ArrayDeque<>();
 //        queue.add(v.pos);
@@ -671,21 +738,25 @@ public class Circuit {
 //}
 //    
     boolean isValidShortcut(Component c, Component v, Component j) {
-        //c é valido se eu quero chegar em j
+        //c é valido se eu quero chegar em j a partir de v: "v -> c -> J"
         if (c.joint) {//só se c for uma junta
             int i = c.ends.indexOf(j);
             if (i != -1) {
                 if (j.joint) {//e j também (não importa os terminais)
                     return true;
                 } else {
-
-//                    int vi = j.connections.indexOf(v);
-//                    String term = j.terminals.get(vi);
-//                    if (term.isEmpty()) {
-//                        int ji = v.connections.indexOf(j);
-//                        term = v.terminals.get(ji);
-//                    }
-//                    return (c.endTerminals.get(i).equals(term));
+                    if (optimize) {
+                        int vi = j.connections.indexOf(v);
+                        String term = j.terminals.get(vi);
+                        if (term.isEmpty()) {
+                            int ji = v.connections.indexOf(j);
+                            term = v.terminals.get(ji);
+                        }
+                        if ((c.endTerminals.get(i).equals(term))) {
+                            System.out.println("FOIIIIIIIIIIIII");
+                        }
+                        return (c.endTerminals.get(i).equals(term));
+                    }
                 }
             }
         }
@@ -730,14 +801,14 @@ public class Circuit {
             for (Component c : vertices) {
                 if (c == j || validShortcuts.contains(c)) {
                     dt = d.getShortestPathTo(c.pos);
-                    System.out.print(dt.size() + ",");
+//                    System.out.print(dt.size() + ",");
                     if ((directions == null || dt.size() < directions.size()) && dt.size() > 0) {
                         directions = dt;
                         f = c;
                     }
                 }
             }
-            System.out.println("");
+//            System.out.println("");
 
             boolean pathExpanded = false;
             boolean shortcut = false;//foi feito um atalho
@@ -935,10 +1006,10 @@ public class Circuit {
     }
 
     public void cubeficate(Topology t) {
-        if (shuffleNg){
+        if (shuffleNg) {
             rand.setSeed(seed);
         }
-        
+
         //guarda a posição no vetor vertices
         int[][][] cube = new int[X][Y][Z];
         resetCube(cube);
@@ -964,7 +1035,8 @@ public class Circuit {
                              de caminhos se necessario;
                              */
                             resetCube(cube);
-                            makePathAndPlace(v, j, cube, t);
+                            placeNg(v, j, cube, t);
+                            //makePathAndPlace(v, j, cube, t);
                             sleep();
                             if (!chain) {
                                 break;
@@ -1165,7 +1237,7 @@ public class Circuit {
             }
         }
 
-        Layout<Integer, String> layout = new FRLayout(graph);
+        Layout<Integer, String> layout = new KKLayout(graph);//new FRLayout(graph);
         layout.setSize(new Dimension(1300, 1300));
         VisualizationViewer<Integer, String> vv = new VisualizationViewer<>(layout);
         vv.setPreferredSize(new Dimension(350, 350));
@@ -1181,7 +1253,7 @@ public class Circuit {
         gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
         vv.setGraphMouse(gm);
         JFrame frame = new JFrame("Interactive Graph 2D View");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.getContentPane().add(vv);
         frame.pack();
         frame.setVisible(true);

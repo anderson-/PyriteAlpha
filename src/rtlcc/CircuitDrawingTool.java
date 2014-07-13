@@ -11,6 +11,7 @@ import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
 import processing.core.PGraphics;
 import quickp3d.DrawingPanel3D;
+import static rtlcc.Circuit3DEditPanel.drawSphere;
 
 /**
  *
@@ -30,8 +31,9 @@ public class CircuitDrawingTool {
         }
         g3d.pushMatrix();
         g3d.translate(c.pos[0], c.pos[1], c.pos[2]);
-        //g3d.box((c.joint && (c.name == null || (c.name != null && c.name.contains("ex")))) ? .03f : .20f);
-        g3d.box(.20f);
+        g3d.box((c.joint && (c.name == null || (c.name != null && c.name.contains("ex")))) ? .10f : .20f);
+//        g3d.box(.20f);
+//        drawSphere(g3d, .1f, 5);
         g3d.popMatrix();
     }
 

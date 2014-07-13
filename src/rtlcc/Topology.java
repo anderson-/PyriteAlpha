@@ -13,9 +13,9 @@ import java.util.ArrayList;
  */
 public abstract class Topology {
 
-    public static final int X = 10;
-    public static final int Y = 10;
-    public static final int Z = 10;
+    public static int X = 4;
+    public static int Y = 4;
+    public static int Z = 4;
 
     public static final Topology SIMPLE = new Topology() {
         @Override

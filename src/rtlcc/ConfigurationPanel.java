@@ -5,10 +5,39 @@
  */
 package rtlcc;
 
+import edu.uci.ics.jung.algorithms.layout.KKLayout;
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.graph.SparseMultigraph;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.GraphMouseListener;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.lang.reflect.Field;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JOptionPane;
+import javax.swing.JRootPane;
+import net.infonode.docking.DockingWindow;
+import net.infonode.docking.SplitWindow;
+import net.infonode.docking.TabWindow;
+import net.infonode.docking.View;
+import net.infonode.docking.util.DockingUtil;
+import net.infonode.tabbedpanel.titledtab.TitledTab;
+import net.infonode.util.Direction;
 import processing.core.PApplet;
+import quickp3d.tools.ObjectPicker;
 
 /**
  *
@@ -17,6 +46,9 @@ import processing.core.PApplet;
 public class ConfigurationPanel extends javax.swing.JFrame {
 
     private Circuit3DEditPanel cep;
+    private DockingWindow window;
+    private boolean createNew;
+    private boolean listening = false;
 
     public ConfigurationPanel(Circuit3DEditPanel cep) {
         this.cep = cep;
@@ -24,6 +56,9 @@ public class ConfigurationPanel extends javax.swing.JFrame {
         popSpinner.setValue(cep.pop);
         genSpinner.setValue(cep.gen);
         timeSpinner.setValue(Circuit.sleep);
+        xSpinner.setValue(Topology.X);
+        ySpinner.setValue(Topology.Y);
+        zSpinner.setValue(Topology.Z);
 
         popSpinner.setFocusable(false);
         genSpinner.setFocusable(false);
@@ -40,7 +75,16 @@ public class ConfigurationPanel extends javax.swing.JFrame {
                 }
             }
         }
-        circuitComboBox.setSelectedIndex(0);
+
+        listening = true;
+
+        if (cep.getCircuit() == null) {
+            circuitComboBox.setSelectedIndex(7);
+        }
+    }
+
+    void setWindow(DockingWindow window) {
+        this.window = window;
     }
 
     /**
@@ -64,9 +108,24 @@ public class ConfigurationPanel extends javax.swing.JFrame {
         shuffleCheckBox = new javax.swing.JCheckBox();
         jLabel5 = new javax.swing.JLabel();
         seedSpinner = new javax.swing.JSpinner();
+        jCheckBox2 = new javax.swing.JCheckBox();
+        xSpinner = new javax.swing.JSpinner();
+        ySpinner = new javax.swing.JSpinner();
+        zSpinner = new javax.swing.JSpinner();
         jPanel2 = new javax.swing.JPanel();
         jLabel3 = new javax.swing.JLabel();
         circuitComboBox = new javax.swing.JComboBox();
+        jCheckBox1 = new javax.swing.JCheckBox();
+        jButton1 = new javax.swing.JButton();
+        jPanel4 = new javax.swing.JPanel();
+        searchTextField = new javax.swing.JTextField();
+        searchButton = new javax.swing.JButton();
+        searchComboBox = new javax.swing.JComboBox();
+        originPlaceButton = new javax.swing.JButton();
+        randomPlaceButton = new javax.swing.JButton();
+        originPlaceButton1 = new javax.swing.JButton();
+        originPlaceButton2 = new javax.swing.JButton();
+        jButton2 = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -103,7 +162,7 @@ public class ConfigurationPanel extends javax.swing.JFrame {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(popSpinner, javax.swing.GroupLayout.DEFAULT_SIZE, 83, Short.MAX_VALUE)
                     .addComponent(genSpinner))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -150,26 +209,54 @@ public class ConfigurationPanel extends javax.swing.JFrame {
             }
         });
 
+        jCheckBox2.setText("Optimize");
+        jCheckBox2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jCheckBox2ActionPerformed(evt);
+            }
+        });
+
+        xSpinner.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                xSpinnerStateChanged(evt);
+            }
+        });
+
+        ySpinner.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                ySpinnerStateChanged(evt);
+            }
+        });
+
+        zSpinner.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                zSpinnerStateChanged(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(jLabel4)
-                        .addGap(18, 18, 18)
-                        .addComponent(timeSpinner))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(zSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 79, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(ySpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 79, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(xSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 79, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(jLabel5)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(seedSpinner))
                             .addComponent(chainCheckBox)
-                            .addComponent(shuffleCheckBox))
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(jLabel5)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(seedSpinner)))
+                            .addComponent(shuffleCheckBox)
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(jLabel4)
+                                .addGap(18, 18, 18)
+                                .addComponent(timeSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 96, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(jCheckBox2)))
                 .addContainerGap())
         );
         jPanel3Layout.setVerticalGroup(
@@ -181,12 +268,19 @@ public class ConfigurationPanel extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(chainCheckBox)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jCheckBox2)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(shuffleCheckBox)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel5)
-                    .addComponent(seedSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(30, Short.MAX_VALUE))
+                    .addComponent(seedSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel5))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(xSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(ySpinner, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 9, Short.MAX_VALUE)
+                .addComponent(zSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
         jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder("Circuit"));
@@ -200,6 +294,13 @@ public class ConfigurationPanel extends javax.swing.JFrame {
             }
         });
 
+        jCheckBox1.setText("new");
+        jCheckBox1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jCheckBox1ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -207,34 +308,152 @@ public class ConfigurationPanel extends javax.swing.JFrame {
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jLabel3)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 33, Short.MAX_VALUE)
                 .addComponent(circuitComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 101, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(121, 121, 121))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jCheckBox1)
+                .addGap(46, 46, 46))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                 .addComponent(jLabel3)
-                .addComponent(circuitComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(circuitComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jCheckBox1))
         );
+
+        jButton1.setText("Show graph 2D");
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
+
+        jPanel4.setBorder(javax.swing.BorderFactory.createTitledBorder("Manual Place"));
+
+        searchButton.setText("Search");
+        searchButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                searchButtonActionPerformed(evt);
+            }
+        });
+
+        searchComboBox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                searchComboBoxActionPerformed(evt);
+            }
+        });
+
+        originPlaceButton.setText("O");
+        originPlaceButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                originPlaceButtonActionPerformed(evt);
+            }
+        });
+
+        randomPlaceButton.setText("R");
+        randomPlaceButton.setEnabled(false);
+        randomPlaceButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                randomPlaceButtonActionPerformed(evt);
+            }
+        });
+
+        originPlaceButton1.setText("Save");
+        originPlaceButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                originPlaceButton1ActionPerformed(evt);
+            }
+        });
+
+        originPlaceButton2.setText("Load");
+        originPlaceButton2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                originPlaceButton2ActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
+        jPanel4.setLayout(jPanel4Layout);
+        jPanel4Layout.setHorizontalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel4Layout.createSequentialGroup()
+                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(searchComboBox, 0, 141, Short.MAX_VALUE)
+                            .addComponent(searchTextField))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(searchButton)
+                            .addGroup(jPanel4Layout.createSequentialGroup()
+                                .addComponent(originPlaceButton)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(randomPlaceButton))))
+                    .addGroup(jPanel4Layout.createSequentialGroup()
+                        .addComponent(originPlaceButton1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(originPlaceButton2)))
+                .addContainerGap())
+        );
+        jPanel4Layout.setVerticalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(searchTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(searchButton))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(searchComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(originPlaceButton)
+                    .addComponent(randomPlaceButton))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(originPlaceButton1)
+                    .addComponent(originPlaceButton2))
+                .addGap(0, 0, Short.MAX_VALUE))
+        );
+
+        jButton2.setText("Show mini graph 2D");
+        jButton2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton2ActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, 209, Short.MAX_VALUE)
+            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jButton1)
+                .addGap(18, 18, 18)
+                .addComponent(jButton2)
+                .addGap(0, 0, Short.MAX_VALUE))
+            .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(54, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jButton1)
+                    .addComponent(jButton2))
+                .addGap(20, 20, 20))
         );
 
         pack();
@@ -253,13 +472,26 @@ public class ConfigurationPanel extends javax.swing.JFrame {
     }//GEN-LAST:event_timeSpinnerStateChanged
 
     private void circuitComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_circuitComboBoxActionPerformed
+        if (!listening) {
+            return;
+        }
         Field[] declaredFields = CircuitBuilder.class.getDeclaredFields();
         for (Field field : declaredFields) {
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
                 if (field.getType().equals(CircuitBuilder.class)) {
                     if (field.getName().equals(circuitComboBox.getSelectedItem())) {
                         try {
-                            cep.setCircuitBuilder((CircuitBuilder) field.get(null));
+                            if (createNew) {
+                                Circuit3DEditPanel cep = new Circuit3DEditPanel((CircuitBuilder) field.get(null));
+                                View applet = new View("3D view", null, cep.createPanel());
+                                ConfigurationPanel configurationPanel = new ConfigurationPanel(cep);
+                                View parameters = new View("Parameters", null, configurationPanel.getContentPane());
+                                SplitWindow splitWindow = new SplitWindow(true, 0.8f, applet, parameters);
+                                DockingUtil.addWindow(splitWindow, window.getRootWindow());
+                                configurationPanel.setWindow(splitWindow.getRightWindow());
+                            } else {
+                                cep.setCircuitBuilder((CircuitBuilder) field.get(null));
+                            }
                         } catch (Exception ex) {
                         }
                     }
@@ -282,10 +514,293 @@ public class ConfigurationPanel extends javax.swing.JFrame {
         Topology.SIMPLE4.getNeighborhood(0, 0, 0, 0);
     }//GEN-LAST:event_seedSpinnerStateChanged
 
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        Circuit circuit = cep.getCircuit();
+
+        SparseMultigraph<String, String> graph = new SparseMultigraph<>();
+
+        //adiciona vertices
+        for (Component v : circuit.vertices) {
+            graph.addVertex(v.getUID());
+        }
+
+        //adciona arestas
+        int id = 0;
+        for (Component v : circuit.vertices) {
+            int i = 0;
+            for (Component e : v.connections) {
+                int eTerm = e.connections.indexOf(v);
+
+                if (eTerm == -1) {
+                    graph.addEdge("err[" + id + "]", e.getUID(), e.getUID());
+                    id++;
+                    i++;
+                    continue;
+                }
+
+                String c1 = v.getUID();
+                String c1t = v.terminals.get(i);
+                String comp = v.subComponents.get(i);
+                String c2t = e.terminals.get(eTerm);
+                String c2 = e.getUID();
+
+                //graph.addEdge(c1 + "." + c1t + "-" + comp + "-" + c2 + "." + c2t, v.getUID(), e.getUID());
+                graph.addEdge(comp + "[" + id + "]", v.getUID(), e.getUID());
+                id++;
+                i++;
+            }
+        }
+
+        KKLayout kkLayout = new KKLayout(graph);
+        Layout<String, String> layout = kkLayout;//new FRLayout(graph);
+        //layout.setSize(new Dimension(800, 500));
+        final VisualizationViewer<String, String> vv = new VisualizationViewer<>(layout);
+        vv.setPreferredSize(new Dimension(350, 350));
+        vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+        vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller() {
+            @Override
+            public String transform(Object v) {
+                String s = v.toString();
+                return s.substring(0, s.indexOf('['));
+            }
+        });
+        final DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+        //gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+        vv.setGraphMouse(gm);
+
+        cep.getPicker().addPropertyChangeListener(new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                String node = ((Component) evt.getNewValue()).getUID();
+                if (evt.getPropertyName().equals(ObjectPicker.ADD)) {
+                    if (!vv.getPickedVertexState().isPicked(node)) {
+                        vv.getPickedVertexState().pick(node, true);
+                    }
+                } else {
+                    if (vv.getPickedVertexState().isPicked(node)) {
+                        vv.getPickedVertexState().pick(((Component) evt.getNewValue()).getUID(), false);
+                    }
+                }
+            }
+        });
+
+        vv.getPickedVertexState().addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                for (Component c : cep.getCircuit().vertices) {
+                    boolean picked = false;
+                    for (Object o : vv.getPickedVertexState().getSelectedObjects()) {
+                        if (c.getUID().equals(o)) {
+                            //vv.getPickedVertexState().pick(c.getUID(), true);
+                            cep.getPicker().add(c);
+                            picked = true;
+                            break;
+                        }
+                    }
+                    if (!picked) {
+                        cep.getPicker().remove(c);
+                    }
+                }
+            }
+        });
+
+        JMenuBar menuBar = new JMenuBar();
+        JMenu modeMenu = gm.getModeMenu();
+        menuBar.add(modeMenu);
+        gm.setMode(ModalGraphMouse.Mode.PICKING);
+
+        JRootPane rootPane = new JRootPane();
+        rootPane.getContentPane().add(vv);
+        rootPane.setJMenuBar(menuBar);
+        View view = new View("2D view " + circuitComboBox.getSelectedItem().toString().toLowerCase(), null, rootPane);
+        ((TabWindow) ((SplitWindow) window.getWindowParent()).getLeftWindow()).addTab(view);
+
+    }//GEN-LAST:event_jButton1ActionPerformed
+
+    private void jCheckBox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBox1ActionPerformed
+        createNew = jCheckBox1.isSelected();
+    }//GEN-LAST:event_jCheckBox1ActionPerformed
+
+    private void jCheckBox2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBox2ActionPerformed
+        Circuit.optimize = jCheckBox2.isSelected();
+    }//GEN-LAST:event_jCheckBox2ActionPerformed
+
+    private void searchButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchButtonActionPerformed
+        String str = searchTextField.getText();
+        if (str.isEmpty()) {
+            if (cep.getPicker().iterator().hasNext()) {
+                Component c = cep.getPicker().iterator().next();
+                str = c.getUID();
+                searchTextField.setText(str);
+            }
+        }
+        searchComboBox.removeAllItems();
+        for (Component c : cep.getCircuit().vertices) {
+            if (c.getUID().contains(str)) {
+                searchComboBox.addItem(c.getUID());
+                cep.getPicker().add(c);
+            }
+        }
+        //searchComboBox.addItem("All");
+    }//GEN-LAST:event_searchButtonActionPerformed
+
+    private void originPlaceButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_originPlaceButtonActionPerformed
+        String str = (String) searchComboBox.getSelectedItem();
+        for (Component c : cep.getCircuit().vertices) {
+            if (c.getUID().equals(str)) {
+                c.pos = new int[]{0, 0, 0};
+                break;
+            }
+        }
+    }//GEN-LAST:event_originPlaceButtonActionPerformed
+
+    private void randomPlaceButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_randomPlaceButtonActionPerformed
+
+    }//GEN-LAST:event_randomPlaceButtonActionPerformed
+
+    private void searchComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchComboBoxActionPerformed
+        String str = (String) searchComboBox.getSelectedItem();
+        cep.getPicker().clear();
+        for (Component c : cep.getCircuit().vertices) {
+            if (c.getUID().equals(str)) {
+                cep.getPicker().add(c);
+                break;
+            }
+        }
+    }//GEN-LAST:event_searchComboBoxActionPerformed
+
+    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
+        Circuit circuit = cep.getCircuit();
+
+        SparseMultigraph<String, String> graph = new SparseMultigraph<>();
+
+        //adiciona vertices
+        for (Component v : circuit.vertices) {
+            graph.addVertex(v.getUID());
+        }
+
+        //adciona arestas
+        int id = 0;
+        for (Component v : circuit.vertices) {
+            int i = 0;
+            for (Component e : v.connections) {
+                int eTerm = e.connections.indexOf(v);
+
+                if (eTerm == -1) {
+                    graph.addEdge("err[" + id + "]", e.getUID(), e.getUID());
+                    id++;
+                    i++;
+                    continue;
+                }
+
+                String c1 = v.getUID();
+                String c1t = v.terminals.get(i);
+                String comp = v.subComponents.get(i);
+                String c2t = e.terminals.get(eTerm);
+                String c2 = e.getUID();
+
+                //graph.addEdge(c1 + "." + c1t + "-" + comp + "-" + c2 + "." + c2t, v.getUID(), e.getUID());
+                graph.addEdge(comp + "[" + id + "]", v.getUID(), e.getUID());
+                id++;
+                i++;
+            }
+        }
+
+        KKLayout kkLayout = new KKLayout(graph);
+        Layout<String, String> layout = kkLayout;//new FRLayout(graph);
+        layout.setSize(new Dimension(200, 200));
+        final VisualizationViewer<String, String> vv = new VisualizationViewer<>(layout);
+//        vv.setPreferredSize(new Dimension(100, 100));
+        vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+        vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller() {
+            @Override
+            public String transform(Object v) {
+                String s = v.toString();
+                return s.substring(0, s.indexOf('['));
+            }
+        });
+        final DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+        //gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+        vv.setGraphMouse(gm);
+
+        cep.getPicker().addPropertyChangeListener(new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                String node = ((Component) evt.getNewValue()).getUID();
+                if (evt.getPropertyName().equals(ObjectPicker.ADD)) {
+                    if (!vv.getPickedVertexState().isPicked(node)) {
+                        vv.getPickedVertexState().pick(node, true);
+                    }
+                } else {
+                    if (vv.getPickedVertexState().isPicked(node)) {
+                        vv.getPickedVertexState().pick(((Component) evt.getNewValue()).getUID(), false);
+                    }
+                }
+            }
+        });
+
+        vv.getPickedVertexState().addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                for (Component c : cep.getCircuit().vertices) {
+                    boolean picked = false;
+                    for (Object o : vv.getPickedVertexState().getSelectedObjects()) {
+                        if (c.getUID().equals(o)) {
+                            //vv.getPickedVertexState().pick(c.getUID(), true);
+                            cep.getPicker().add(c);
+                            picked = true;
+                            break;
+                        }
+                    }
+                    if (!picked) {
+                        cep.getPicker().remove(c);
+                    }
+                }
+            }
+        });
+
+        JMenuBar menuBar = new JMenuBar();
+        JMenu modeMenu = gm.getModeMenu();
+        menuBar.add(modeMenu);
+        gm.setMode(ModalGraphMouse.Mode.PICKING);
+
+        JRootPane rootPane = new JRootPane();
+        rootPane.getContentPane().add(vv);
+        rootPane.setJMenuBar(menuBar);
+        View view = new View("2D MINI view " + circuitComboBox.getSelectedItem().toString().toLowerCase(), null, rootPane);
+        window.split(view, Direction.DOWN, .7f);
+
+    }//GEN-LAST:event_jButton2ActionPerformed
+
+    private void xSpinnerStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_xSpinnerStateChanged
+        Topology.X = (int) xSpinner.getValue();
+    }//GEN-LAST:event_xSpinnerStateChanged
+
+    private void ySpinnerStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_ySpinnerStateChanged
+        Topology.Y = (int) ySpinner.getValue();
+    }//GEN-LAST:event_ySpinnerStateChanged
+
+    private void zSpinnerStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_zSpinnerStateChanged
+        Topology.Z = (int) zSpinner.getValue();
+    }//GEN-LAST:event_zSpinnerStateChanged
+
+    private void originPlaceButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_originPlaceButton1ActionPerformed
+        System.out.println(cep.getCircuit().save());
+    }//GEN-LAST:event_originPlaceButton1ActionPerformed
+
+    private void originPlaceButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_originPlaceButton2ActionPerformed
+        String str ="";// JOptionPane.showInputDialog(this, "insert pojo:");
+        cep.getCircuit().load(str);
+    }//GEN-LAST:event_originPlaceButton2ActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JCheckBox chainCheckBox;
     private javax.swing.JComboBox circuitComboBox;
     private javax.swing.JSpinner genSpinner;
+    private javax.swing.JButton jButton1;
+    private javax.swing.JButton jButton2;
+    private javax.swing.JCheckBox jCheckBox1;
+    private javax.swing.JCheckBox jCheckBox2;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
@@ -294,9 +809,21 @@ public class ConfigurationPanel extends javax.swing.JFrame {
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
+    private javax.swing.JPanel jPanel4;
+    private javax.swing.JButton originPlaceButton;
+    private javax.swing.JButton originPlaceButton1;
+    private javax.swing.JButton originPlaceButton2;
     private javax.swing.JSpinner popSpinner;
+    private javax.swing.JButton randomPlaceButton;
+    private javax.swing.JButton searchButton;
+    private javax.swing.JComboBox searchComboBox;
+    private javax.swing.JTextField searchTextField;
     private javax.swing.JSpinner seedSpinner;
     private javax.swing.JCheckBox shuffleCheckBox;
     private javax.swing.JSpinner timeSpinner;
+    private javax.swing.JSpinner xSpinner;
+    private javax.swing.JSpinner ySpinner;
+    private javax.swing.JSpinner zSpinner;
     // End of variables declaration//GEN-END:variables
+
 }

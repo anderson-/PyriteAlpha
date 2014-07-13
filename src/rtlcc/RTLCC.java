@@ -81,22 +81,21 @@ public class RTLCC {
 //
 ////        
 //    }
-    
     private JFrame window;
     private RootWindow rootWindow;
     private DockingWindowsTheme currentTheme = new net.infonode.docking.theme.ShapedGradientDockingTheme();
     //private DockingWindowsTheme currentTheme = new net.infonode.docking.theme.DefaultDockingTheme();
     private RootWindowProperties properties = new RootWindowProperties();
-    
+
     public RTLCC() {
         createAndShowUI();
     }
-    
+
     private void createAndShowUI() {
         window = new JFrame("RTLCC");
         window.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         window.getContentPane().setPreferredSize(new Dimension(1000, 600));
-        
+
         rootWindow = new RootWindow(null);
         rootWindow.setBorder(null);
         properties.addSuperObject(currentTheme.getRootWindowProperties());
@@ -104,7 +103,7 @@ public class RTLCC {
         // Add a mouse button listener that closes a window when it's clicked with the middle mouse button.
         rootWindow.addTabMouseButtonListener(DockingWindowActionMouseButtonListener.MIDDLE_BUTTON_CLOSE_LISTENER);
         window.getContentPane().add(rootWindow);
-        
+
         try {
             InfoNodeLookAndFeel infoNodeLookAndFeel = new InfoNodeLookAndFeel();
             UIManager.setLookAndFeel(infoNodeLookAndFeel);
@@ -113,15 +112,17 @@ public class RTLCC {
 
         //fill
         Circuit3DEditPanel cep = new Circuit3DEditPanel();
-        View applet = new View("Applet", null, cep.createPanel());
-        View parameters = new View("Parameters", null, new ConfigurationPanel(cep).getContentPane());
+        View applet = new View("3D view", null, cep.createPanel());
+        ConfigurationPanel configurationPanel = new ConfigurationPanel(cep);
+        View parameters = new View("Parameters", null, configurationPanel.getContentPane());
         DockingUtil.addWindow(applet, rootWindow);
         DockingUtil.addWindow(parameters, rootWindow);
-        
-        rootWindow.setWindow(new SplitWindow(true, 0.8f, applet, parameters));
+        SplitWindow splitWindow = new SplitWindow(true, 0.8f, applet, parameters);
+        configurationPanel.setWindow(splitWindow.getRightWindow());
+        rootWindow.setWindow(splitWindow);
         window.pack();
     }
-    
+
     private void show() {
         //centraliza a janela
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
@@ -129,9 +130,9 @@ public class RTLCC {
         window.setLocation((screen.width - frame.width) / 2, (screen.height - frame.height) / 2);
         //torna a janela visivel
         window.setVisible(true);
-        freezeLayout(true);
+//        freezeLayout(true);
     }
-    
+
     private void freezeLayout(boolean freeze) {
         // Freeze window operations
         properties.getDockingWindowProperties().setDragEnabled(!freeze);
@@ -144,10 +145,10 @@ public class RTLCC {
 
         // Freeze tab reordering inside tabbed panel
         properties.getTabWindowProperties().getTabbedPanelProperties().setTabReorderEnabled(!freeze);
-        
+
         properties.getSplitWindowProperties().setDividerLocationDragEnabled(!freeze);
     }
-    
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
@@ -157,40 +158,40 @@ public class RTLCC {
             }
         });
     }
-    
+
     int toInt(int x, int y, int z) {
         int rgb = x;
         rgb = (rgb << 8) + y;
         rgb = (rgb << 8) + z;
         return rgb;
     }
-    
+
     static int toInt(int[] i) {
         int rgb = i[0];
         rgb = (rgb << 8) + i[1];
         rgb = (rgb << 8) + i[2];
         return rgb;
     }
-    
+
     int[] toVet(int i) {
         int x = (i >> 16) & 0xFF;
         int y = (i >> 8) & 0xFF;
         int z = i & 0xFF;
         return new int[]{x, y, z};
     }
-    
+
     private static void teste() {
         int c = 20000000;
         long t;
-        
+
         ArrayList<Integer> l = new ArrayList<>();
         Integer val = 13123172;
         int count = 0;
-        
+
         for (int i = 0; i < c; i++) {
             l.add((int) (Math.random() * 100));
         }
-        
+
         t = System.currentTimeMillis();
         for (int i = 0; i < c; i++) {
             if (val == l.get(i)) {
@@ -199,14 +200,14 @@ public class RTLCC {
         }
         System.out.println(count);
         System.out.println("t1: " + (System.currentTimeMillis() - t));
-        
+
         ArrayList<int[]> l2 = new ArrayList<>();
         int[] val2 = new int[]{2, 3, 4};
         count = 0;
-        
+
         for (int i = 0; i < c; i++) {
             l2.add(new int[]{(int) (Math.random() * 100), (int) (Math.random() * 100), (int) (Math.random() * 100)});
-            
+
         }
         t = System.currentTimeMillis();
         for (int i = 0; i < c; i++) {
@@ -216,14 +217,14 @@ public class RTLCC {
         }
         System.out.println(count);
         System.out.println("t2: " + (System.currentTimeMillis() - t));
-        
+
         ArrayList<int[]> l3 = new ArrayList<>();
         int val3 = 126313281;
         count = 0;
-        
+
         for (int i = 0; i < c; i++) {
             l3.add(new int[]{(int) (Math.random() * 100), (int) (Math.random() * 100), (int) (Math.random() * 100)});
-            
+
         }
         t = System.currentTimeMillis();
         for (int[] i : l3) {
@@ -233,8 +234,8 @@ public class RTLCC {
         }
         System.out.println(count);
         System.out.println("t3: " + (System.currentTimeMillis() - t));
-        
+
         System.gc();
     }
-    
+
 }

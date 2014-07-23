@@ -5,6 +5,15 @@
  */
 package rtlcc;
 
+import com.falstad.circuit.CirSim;
+import com.falstad.circuit.CircuitElm;
+import com.falstad.circuit.CircuitNode;
+import com.falstad.circuit.CircuitNodeLink;
+import java.awt.Point;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map.Entry;
+
 /**
  *
  * @author antunes
@@ -134,6 +143,116 @@ public abstract class CircuitBuilder {
             c.outputs.add(comp);
         }
         c.vertices.add(comp);
+    }
+
+    static Circuit parse(CirSim ogf) {
+        Circuit cir = new Circuit();
+
+        HashMap<Point, Component> jointMap = new HashMap<>();
+        HashMap<CircuitElm, Component> compMap = new HashMap<>();
+        HashMap<CircuitElm, ArrayList<CircuitNode>> kMap = new HashMap<>();
+
+        for (int i = 0; i < ogf.nodeListSize(); i++) {
+            CircuitNode node = ogf.getCircuitNode(i);
+            if (node.internal) {
+                System.out.println("*");
+                continue;
+            }
+            CircuitElm t = null;
+            for (CircuitNodeLink link : node.links) {
+                //if (link.elm.getPostCount() > 2) {
+                if (link.elm.getPostCount() != 2) {
+                    t = link.elm;
+                    if (!kMap.containsKey(t)) {
+                        kMap.put(t, new ArrayList<CircuitNode>());
+                        kMap.get(t).add(node);//?
+                    } else {
+                        kMap.get(t).add(node);
+                    }
+                    break;
+                }
+            }
+            if (t == null) {
+                //junta simples
+                Component j = new Component(true);
+                //j.name = "j";
+                set(j, cir);
+                jointMap.put(new Point(node.x, node.y), j);
+                for (CircuitNodeLink link : node.links) {
+                    CircuitElm e = link.elm;
+                    if (e.getPostCount() == 2) {
+                        Component c1 = jointMap.get(e.getPost(0));
+                        Component c2 = jointMap.get(e.getPost(1));
+                        if (c1 != null && c2 != null) {
+                            connect(c1, c2, e.dump());
+                        }
+                    }
+                }
+            } else if (!compMap.containsKey(t)) {
+                //transistor e outros
+                Component j = new Component(true);
+                String n = t.dump();
+                if (n.startsWith("-")) {
+                    String name = t.dump();
+                    for (int k = 0; k < 7; k++) {
+                        name = name.substring(name.indexOf(' ') + 1);
+                    }
+                    j.name = name;
+                    set(j, cir, OUTPUT);
+                } else if (n.startsWith("+")) {
+                    String name = t.dump();
+                    for (int k = 0; k < 10; k++) {
+                        name = name.substring(name.indexOf(' ') + 1);
+                    }
+                    set(j, cir, INPUT);
+                } else {
+                    j.name = t.getDumpClass().getSimpleName();
+                    set(j, cir);
+                }
+                compMap.put(t, j);
+            }
+        }
+
+        for (Entry<CircuitElm, Component> entry : compMap.entrySet()) {
+            ArrayList<CircuitNode> all = kMap.get(entry.getKey());
+            for (CircuitNode node : all) {
+                String terminal = "";
+                CircuitElm t = entry.getKey();
+                for (CircuitNodeLink link : node.links) {
+                    CircuitElm e = link.elm;
+                    if (e.getPostCount() == 2) {
+                        for (int i = 0; i < t.getPostCount(); i++) {
+                            switch (i) {
+                                case 0:
+                                    terminal = "b";
+                                    break;
+                                case 1:
+                                    terminal = "c";
+                                    break;
+                                case 2:
+                                    terminal = "e";
+                                    break;
+                            }
+                            Point p = t.getPost(i);
+                            Component c = null;
+                            if (p.equals(e.getPost(0))) {
+                                c = jointMap.get(e.getPost(1));
+                            } else if (p.equals(e.getPost(1))) {
+                                c = jointMap.get(e.getPost(0));
+                            }
+                            if (c != null) {
+                                connect(entry.getValue(), c, e.dump(), terminal);
+                                entry.getValue().type = t.getClass().getSimpleName();
+                            } else {
+                                System.out.println("fail: " + e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return cir;
     }
 
     public abstract Circuit build();
@@ -381,9 +500,11 @@ public abstract class CircuitBuilder {
         t1.type = "transistor";
         set(t1, c);
 
-        connect(a, j1, "(-|<-)");
+        //connect(a, j1, "(-|<-)");
+        connect(j1, a, "(->|-)");
         connect(a, j3, "(->|-)");
-        connect(b, j2, "(-|<-)");
+        //connect(b, j2, "(-|<-)");
+        connect(j2, b, "(->|-)");
         connect(b, j4, "(->|-)");
         connect(j2, t1, "(->|-)", "b");
 

@@ -9,17 +9,21 @@ import edu.uci.ics.jung.algorithms.layout.FRLayout;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.graph.SparseMultigraph;
+import edu.uci.ics.jung.graph.util.EdgeType;
+import edu.uci.ics.jung.graph.util.Pair;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
 import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -622,6 +626,392 @@ public class Circuit {
         return (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
     }
 
+    public String dump(boolean show) {
+        SparseMultigraph<String, String> graph = new SparseMultigraph<>();
+
+        //adiciona vertices
+        for (Component v : vertices) {
+            graph.addVertex(v.getUID());
+        }
+
+        //adciona arestas
+        {
+            int id = 0;
+            for (Component v : vertices) {
+                int i = 0;
+                for (Component e : v.connections) {
+                    int eTerm = e.connections.indexOf(v);
+
+                    if (eTerm == -1) {
+                        graph.addEdge("err[" + id + "]", e.getUID(), e.getUID());
+                        id++;
+                        i++;
+                        continue;
+                    }
+
+                    String c1 = v.getUID();
+                    String c1t = v.terminals.get(i);
+                    String comp = v.subComponents.get(i);
+                    String c2t = e.terminals.get(eTerm);
+                    String c2 = e.getUID();
+
+                    //graph.addEdge(c1 + "." + c1t + "-" + comp + "-" + c2 + "." + c2t + "[" + id + "]", v.getUID(), e.getUID());
+                    graph.addEdge(comp + "[" + id + "]", v.getUID(), e.getUID());
+                    id++;
+                    i++;
+                }
+            }
+        }
+
+        KKLayout<String, String> layout = new KKLayout(graph);//new FRLayout(graph);
+        layout.setSize(new Dimension(400, 400));
+
+        if (show) {
+            VisualizationViewer<String, String> vv = new VisualizationViewer<>(layout);
+            vv.setPreferredSize(new Dimension(400, 400));
+            vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
+            vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller() {
+                @Override
+                public String transform(Object v) {
+                    String s = v.toString();
+                    return s.substring(0, s.indexOf('['));
+                }
+            });
+            DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+            gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+            vv.setGraphMouse(gm);
+            JFrame frame = new JFrame("Interactive Graph 2D View - DUMP");
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            frame.getContentPane().add(vv);
+            frame.pack();
+            frame.setVisible(true);
+        }
+
+        HashMap<String, Point2D> pointMap = new HashMap<>();
+        HashMap<String, Component> compMap = new HashMap<>();
+
+        for (Component v : vertices) {
+            String id = v.getUID();
+            Point2D p = layout.transform(id);
+            pointMap.put(id, p);
+            compMap.put(id, v);
+        }
+
+        ArrayList<String> edges = new ArrayList<>();
+        for (Component v : vertices) {
+            for (Component e : v.connections) {
+                for (String s : graph.findEdgeSet(v.getUID(), e.getUID())) {
+                    if (!edges.contains(s)) {
+                        edges.add(s);
+                    }
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("$ 1 5.0E-6 10 54 5.0\n");
+        TreeSet<Pair<String>> ok = new TreeSet<>(new Comparator<Pair<String>>() {
+            @Override
+            public int compare(Pair<String> o1, Pair<String> o2) {
+                String f1 = o1.getFirst();
+                String f2 = o2.getFirst();
+                String s1 = o1.getSecond();
+                String s2 = o2.getSecond();
+
+                if (f1.equals(f2) && s1.equals(s2)) {
+                    return 0;
+                } else if (f1.equals(s2) && s1.equals(f2)) {
+                    return 0;
+                }
+
+                return 1;
+            }
+        });
+        ArrayList<String> okt = new ArrayList<>();
+        for (String edge : edges) {
+            Pair<String> endpoints = graph.getEndpoints(edge);
+            String source = endpoints.getFirst();
+            String dest = endpoints.getSecond();
+            Component v = compMap.get(source);
+            Component e = compMap.get(dest);
+
+            int eTerm = e.connections.indexOf(v);
+            int vTerm = v.connections.indexOf(e);
+
+            if (eTerm == -1) {
+                System.err.println("ERROR!");
+                System.exit(0);
+                continue;
+            }
+
+            String c1 = v.getUID();
+            String c1t = v.terminals.get(vTerm);
+            String comp = v.subComponents.get(vTerm);
+            String c2t = e.terminals.get(eTerm);
+            String c2 = e.getUID();
+
+            /*
+            
+             r w 
+             w r 
+             w w 
+            
+             */
+            if (!ok.contains(endpoints)) {
+                if (edge.startsWith("[")) {
+                    ok.add(endpoints);
+                    continue;
+                }
+            } else {
+
+            }
+
+            String type = "";
+            String flags = "";
+
+            if (comp.length() > 8) {
+                type = comp.substring(0, comp.indexOf(' '));
+                flags = comp;
+                for (int i = 0; i < 5; i++) {
+                    flags = flags.substring(flags.indexOf(' ') + 1);
+                }
+                System.out.println(type + " - " + flags);
+            } else {
+
+                switch (comp) {
+                    case "":
+                        type = "w";
+                        flags = "0";
+                        break;
+                    case "res1k":
+                        type = "r";
+                        flags = "0 1000.0";
+                        break;
+                    case "res2k":
+                        type = "r";
+                        flags = "0 2000.0";
+                        break;
+                    case "res10k":
+                        type = "r";
+                        flags = "0 10000.0";
+                        break;
+                    case "btn":
+                        type = "s";
+                        flags = "0 1 false";
+                        break;
+                    case "(->^^|-)":
+                        type = "162";
+                        //x tensão r g b
+                        flags = "1 2.1024259 1.0 0.0 0.0";
+                        break;
+                    case "(->|-)":
+                        type = "d";
+                        flags = "1 0.805904783";
+                        break;
+                    case "bat":
+                        type = "v";
+                        flags = "0 0 40.0 9.0 0.0 0.0 0.5";
+                        break;
+//                        case "?":
+//                            type = "";
+//                            flags = "";
+//                            break;
+                    default:
+                        System.out.println("not def: " + comp);
+                }
+            }
+
+            Point2D p1 = pointMap.get(c1);
+            Point2D p2 = pointMap.get(c2);
+
+            int x1 = ((int) p1.getX() / 10) * 16;
+            int x2 = ((int) p2.getX() / 10) * 16;
+            int y1 = ((int) p1.getY() / 10) * 16;
+            int y2 = ((int) p2.getY() / 10) * 16;
+
+            if (v.type != null && v.type.contains("ransistor") && !okt.contains(c1)) {
+                okt.add(c1);
+                sb.append("t " + x1 + " " + y1 + " " + (x1 + 32) + " " + y1 + "  0 1 0.0 0.0 100.0\n");
+            }
+
+            if ("transistor".equals(e.type) && !okt.contains(c2)) {
+                okt.add(c2);
+                sb.append("t " + x2 + " " + y2 + " " + (x2 + 32) + " " + y2 + "  0 1 0.0 0.0 100.0\n");
+            }
+
+            switch (c1t) {
+                case "b":
+                    x1 = x1;
+                    y1 = y1;
+                    break;
+                case "c":
+                    x1 = x1 + 32;
+                    y1 = y1 - 16;
+                    break;
+                case "e":
+                    x1 = x1 + 32;
+                    y1 = y1 + 16;
+                    break;
+            }
+
+            switch (c2t) {
+                case "b":
+                    x2 = x2;
+                    y2 = y2;
+                    break;
+                case "c":
+                    x2 = x2 + 32;
+                    y2 = y2 - 16;
+                    break;
+                case "e":
+                    x2 = x2 + 32;
+                    y2 = y2 + 16;
+                    break;
+            }
+
+            if (!type.isEmpty()) {
+                sb.append(type + " " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + flags + "\n");
+            }
+
+        }
+
+        return sb.toString();
+
+//        {
+//            for (Component v : vertices) {
+//                int i = 0;
+//                for (Component e : v.connections) {
+//                    int eTerm = e.connections.indexOf(v);
+//
+//                    if (eTerm == -1) {
+//                        System.err.println("ERROR!");
+//                        System.exit(0);
+//                        continue;
+//                    }
+//
+//                    String c1 = v.getUID();
+//                    String c1t = v.terminals.get(i);
+//                    String comp = v.subComponents.get(i);
+//                    String c2t = e.terminals.get(eTerm);
+//                    String c2 = e.getUID();
+//                    i++;
+//
+//                    Collection<String> findEdgeSet = graph.findEdgeSet(c1, c2);
+//                    String[] arr = findEdgeSet.toArray(new String[2]);
+//
+//                    String b = arr[0];
+//                    if (ok.contains(b)) {
+////                        System.out.println(b);
+//                        continue;
+//                    }
+//
+//                    ok.add(b);
+//                    if (b.startsWith("[")) {
+//                        String c = arr[1];
+//                        if (c.startsWith("[")) {
+////                            System.out.println("ig " + c);
+//                            ok.add(c);
+//                        } else {
+////                            System.out.println("ig " + b);
+//                            continue;
+//                        }
+//                    } else {
+////                        System.out.println("do " + b + " " + comp);
+//                    }
+//
+//                    String type = "";
+//                    String flags = "";
+//
+//                    switch (comp) {
+//                        case "":
+//                            type = "w";
+//                            flags = "0";
+//                            break;
+//                        case "res1k":
+//                            type = "r";
+//                            flags = "0 1000.0";
+//                            break;
+//                        case "res10k":
+//                            type = "r";
+//                            flags = "0 10000.0";
+//                            break;
+//                        case "btn":
+//                            type = "s";
+//                            flags = "0 1 true";
+//                            break;
+//                        case "(->^^|-)":
+//                            type = "162";
+//                            //x tensão r g b
+//                            flags = "1 2.1024259 1.0 0.0 0.0";
+//                            break;
+//                        case "bat":
+//                            type = "v";
+//                            flags = "0 0 40.0 5.0 0.0 0.0 0.5";
+//                            break;
+////                        case "?":
+////                            type = "";
+////                            flags = "";
+////                            break;
+//                        default:
+//                            System.out.println("not def: " + comp);
+//                    }
+//
+//                    Point2D p1 = pointMap.get(c1);
+//                    Point2D p2 = pointMap.get(c2);
+//
+//                    int x1 = ((int) p1.getX() / 10) * 16;
+//                    int x2 = ((int) p2.getX() / 10) * 16;
+//                    int y1 = ((int) p1.getY() / 10) * 16;
+//                    int y2 = ((int) p2.getY() / 10) * 16;
+//
+//                    if ("transistor".equals(v.type) && !ok.contains(c1)) {
+//                        ok.add(c1);
+//                        System.out.println("t " + x1 + " " + y1 + " " + (x1 + 32) + " " + y1 + "  0 1 0.0 0.0 100.0");
+//                    }
+//
+//                    if ("transistor".equals(e.type) && !ok.contains(c2)) {
+//                        ok.add(c2);
+//                        System.out.println("t " + x2 + " " + y2 + " " + (x2 + 32) + " " + y2 + "  0 1 0.0 0.0 100.0");
+//                    }
+//
+//                    switch (c1t) {
+//                        case "b":
+//                            x1 = x1;
+//                            y1 = y1;
+//                            break;
+//                        case "c":
+//                            x1 = x1 + 32;
+//                            y1 = y1 - 16;
+//                            break;
+//                        case "e":
+//                            x1 = x1 + 32;
+//                            y1 = y1 + 16;
+//                            break;
+//                    }
+//
+//                    switch (c2t) {
+//                        case "b":
+//                            x2 = x2;
+//                            y2 = y2;
+//                            break;
+//                        case "c":
+//                            x2 = x2 + 32;
+//                            y2 = y2 - 16;
+//                            break;
+//                        case "e":
+//                            x2 = x2 + 32;
+//                            y2 = y2 + 16;
+//                            break;
+//                    }
+//
+//                    if (!type.isEmpty()) {
+//                        System.out.println(type + " " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + flags);
+//                    }
+//                }
+//            }
+//        }
+    }
+
     static class Dijkstra {
 
         static int toInt(int x, int y, int z) {
@@ -1203,6 +1593,10 @@ public class Circuit {
     }
 
     public void show2D() {
+        show2D(700);
+    }
+
+    public void show2D(int size) {
         SparseMultigraph<String, String> graph = new SparseMultigraph<>();
 
         //adiciona vertices
@@ -1230,7 +1624,7 @@ public class Circuit {
                 String c2t = e.terminals.get(eTerm);
                 String c2 = e.getUID();
 
-                //graph.addEdge(c1 + "." + c1t + "-" + comp + "-" + c2 + "." + c2t, v.getUID(), e.getUID());
+                //graph.addEdge(c1 + "." + c1t + "-" + comp + "-" + c2 + "." + c2t + "[" + id + "]", v.getUID(), e.getUID());
                 graph.addEdge(comp + "[" + id + "]", v.getUID(), e.getUID());
                 id++;
                 i++;
@@ -1238,9 +1632,9 @@ public class Circuit {
         }
 
         Layout<Integer, String> layout = new KKLayout(graph);//new FRLayout(graph);
-        layout.setSize(new Dimension(1300, 1300));
+        layout.setSize(new Dimension(size, size));
         VisualizationViewer<Integer, String> vv = new VisualizationViewer<>(layout);
-        vv.setPreferredSize(new Dimension(350, 350));
+        vv.setPreferredSize(new Dimension(size, size));
         vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
         vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller() {
             @Override

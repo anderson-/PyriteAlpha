@@ -5,6 +5,10 @@
  */
 package rtlcc;
 
+import com.falstad.circuit.CirSim;
+import com.falstad.circuit.CircuitElm;
+import com.falstad.circuit.CircuitNode;
+import com.falstad.circuit.CircuitNodeLink;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
@@ -32,6 +36,8 @@ import net.infonode.docking.theme.ShapedGradientDockingTheme;
 import net.infonode.docking.util.DockingUtil;
 import net.infonode.gui.laf.InfoNodeLookAndFeel;
 import processing.core.PApplet;
+import rtlcc.circuitsim.MyLogicInputElm;
+import rtlcc.circuitsim.MyLogicOutputElm;
 
 /**
  *
@@ -149,14 +155,93 @@ public class RTLCC {
         properties.getSplitWindowProperties().setDividerLocationDragEnabled(!freeze);
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                RTLCC ui = new RTLCC();
-                ui.show();
-            }
-        });
+    public static void main(String[] args) throws InterruptedException {
+//        SwingUtilities.invokeLater(new Runnable() {
+//            @Override
+//            public void run() {
+//                RTLCC ui = new RTLCC();
+//                ui.show();
+//            }
+//        });
+        String d = "$ 1 5.0E-6 10.20027730826997 54 5.0 50\n"
+                + "w 432 384 272 400 0\n"
+                + "162 432 384 496 224 1 2.1024259 1.0 0.0 0.0\n"
+                + "r 112 224 288 32 0 1000.0\n"
+                + "w 112 224 272 400 0\n"
+                + "t 176 192 208 192 0 1 -2.487582614283124E-4 9.900989699053085E-12 100.0\n"
+                + "w 112 224 208 176 0\n"
+                + "t 368 288 400 288 0 1 8.99975124172867 9.0 100.0\n"
+                + "w 400 272 272 400 0\n"
+                + "w 208 208 176 336 0\n"
+                + "w 176 336 400 304 0\n"
+                + "w 320 144 176 336 0\n"
+                + "s 176 64 288 32 0 1 false\n"
+                + "s 448 96 288 32 0 0 false\n"
+                + "v 320 144 288 32 0 0 40.0 9.0 0.0 0.0 0.5\n"
+                + "r 176 64 320 144 0 10000.0\n"
+                + "r 448 96 320 144 0 10000.0\n"
+                + "r 496 224 320 144 0 1000.0\n"
+                + "r 176 192 176 64 0 10000.0\n"
+                + "w 368 288 448 96 0\n"
+                + "- 464 112 544 128 0 2.5 s\n"
+                + "w 464 112 448 96 0\n"
+                + "+ 448 96 496 64 0 1 false 5.0 0.0 a\n";
+
+        String d2 = "$ 1 5.0E-6 10.20027730826997 54 5.0 50\n"
+                + "w 464 384 304 400 0\n"
+                + "162 464 384 528 224 1 2.1024259 1.0 0.0 0.0\n"
+                + "r 144 224 320 32 0 1000.0\n"
+                + "w 144 224 304 400 0\n"
+                + "t 208 192 240 192 0 1 -2.487582614283124E-4 9.900989699053085E-12 100.0\n"
+                + "w 144 224 240 176 0\n"
+                + "t 400 288 432 288 0 1 8.99975124172867 9.0 100.0\n"
+                + "w 432 272 304 400 0\n"
+                + "w 240 208 208 336 0\n"
+                + "w 208 336 432 304 0\n"
+                + "w 352 144 208 336 0\n"
+                + "s 208 64 320 32 0 1 false\n"
+                + "s 480 96 320 32 0 0 false\n"
+                + "v 352 144 320 32 0 0 40.0 9.0 0.0 0.0 0.5\n"
+                + "r 208 64 352 144 0 10000.0\n"
+                + "r 480 96 352 144 0 10000.0\n"
+                + "r 528 224 352 144 0 1000.0\n"
+                + "r 208 192 208 64 0 10000.0\n"
+                + "w 400 288 480 96 0\n"
+                + "- 496 112 576 128 0 2.5 s\n"
+                + "w 496 112 480 96 0\n"
+                + "+ 496 112 480 96 0 0 false 5.0 0.0 a\n";
+
+        String inv = "$ 1 5.0E-6 10.20027730826997 54 5.0 50\n"
+                + "t 320 192 320 272 0 1 0.5875584150944089 -3.7844516501481884 100.0\n"
+                + "t 336 272 416 272 0 1 0.6035944264912844 0.6279899347574025 100.0\n"
+                + "g 416 288 416 336 0\n"
+                + "r 320 192 320 112 0 4700.0\n"
+                + "r 416 112 416 192 0 1000.0\n"
+                + "w 416 192 416 256 0\n"
+                + "R 320 112 240 112 0 0 40.0 5.0 0.0 0.0 0.5\n"
+                + "w 320 112 416 112 0\n"
+                + "+ 304 272 240 272 0 0 false 5.0 0.0 a\n"
+                + "- 416 192 496 192 0 2.5 s\n";
+
+//        String s = CircuitBuilder.OR.build().dump(true);
+//        System.out.println(s);
+        CirSim ogf = new CirSim(null);
+        ogf.init();
+        ogf.register(MyLogicInputElm.class, ogf.constructElement(MyLogicInputElm.class, 0, 0));
+        ogf.register(MyLogicOutputElm.class, ogf.constructElement(MyLogicOutputElm.class, 0, 0));
+        ogf.readSetup(inv);
+        ogf.getCircuitCanvas().repaint();
+
+        Thread.sleep(1500);
+//
+        CircuitBuilder.parse(ogf).show2D();
+//
+//        System.out.println(s2);
+//        CirSim ogf2 = new CirSim(null);
+//        ogf2.init();
+//        ogf2.register(MyLogicInputElm.class, ogf2.constructElement(MyLogicInputElm.class, 0, 0));
+//        ogf2.register(MyLogicOutputElm.class, ogf2.constructElement(MyLogicOutputElm.class, 0, 0));
+//        ogf2.readSetup(s2);
     }
 
     int toInt(int x, int y, int z) {

@@ -154,25 +154,28 @@ public abstract class CircuitBuilder {
 
         for (int i = 0; i < ogf.nodeListSize(); i++) {
             CircuitNode node = ogf.getCircuitNode(i);
-            if (node.internal) {
+            if (node.internal || node.links.isEmpty()) {
                 System.out.println("*");
                 continue;
             }
-            CircuitElm t = null;
+//            
+            ArrayList<CircuitElm> ts = new ArrayList<>();
             for (CircuitNodeLink link : node.links) {
                 //if (link.elm.getPostCount() > 2) {
                 if (link.elm.getPostCount() != 2) {
-                    t = link.elm;
+                    CircuitElm t = link.elm;
+                    ts.add(t);
                     if (!kMap.containsKey(t)) {
                         kMap.put(t, new ArrayList<CircuitNode>());
-                        kMap.get(t).add(node);//?
-                    } else {
+                    }
+                    if (!kMap.get(t).contains(node)) {
                         kMap.get(t).add(node);
                     }
-                    break;
+//                    break;
                 }
             }
-            if (t == null) {
+
+            if (ts.isEmpty()) {
                 //junta simples
                 Component j = new Component(true);
                 //j.name = "j";
@@ -188,66 +191,81 @@ public abstract class CircuitBuilder {
                         }
                     }
                 }
-            } else if (!compMap.containsKey(t)) {
-                //transistor e outros
-                Component j = new Component(true);
-                String n = t.dump();
-                if (n.startsWith("-")) {
-                    String name = t.dump();
-                    for (int k = 0; k < 7; k++) {
-                        name = name.substring(name.indexOf(' ') + 1);
+            } else {
+                for (CircuitElm t : ts) {
+                    if (!compMap.containsKey(t)) {
+                        //transistor e outros
+                        Component j = new Component(true);
+                        String n = t.dump();
+                        if (n.startsWith("-")) {
+                            String name = t.dump();
+                            for (int k = 0; k < 7; k++) {
+                                name = name.substring(name.indexOf(' ') + 1);
+                            }
+                            j.name = name;
+                            set(j, cir, OUTPUT);
+                        } else if (n.startsWith("+")) {
+                            String name = t.dump();
+                            for (int k = 0; k < 10; k++) {
+                                name = name.substring(name.indexOf(' ') + 1);
+                            }
+                            j.name = name;
+                            set(j, cir, INPUT);
+                        } else {
+                            j.name = t.getDumpClass().getSimpleName();
+                            set(j, cir);
+                        }
+                        compMap.put(t, j);
+                        if (t.getPostCount() == 1 && !jointMap.containsValue(j)) {
+                            jointMap.put(new Point(node.x, node.y), j);
+                        }
                     }
-                    j.name = name;
-                    set(j, cir, OUTPUT);
-                } else if (n.startsWith("+")) {
-                    String name = t.dump();
-                    for (int k = 0; k < 10; k++) {
-                        name = name.substring(name.indexOf(' ') + 1);
-                    }
-                    set(j, cir, INPUT);
-                } else {
-                    j.name = t.getDumpClass().getSimpleName();
-                    set(j, cir);
                 }
-                compMap.put(t, j);
             }
         }
 
         for (Entry<CircuitElm, Component> entry : compMap.entrySet()) {
-            ArrayList<CircuitNode> all = kMap.get(entry.getKey());
-            for (CircuitNode node : all) {
+            CircuitElm t = entry.getKey();
+            for (int i = 0; i < t.getPostCount(); i++) {
+                Point p = t.getPost(i);
                 String terminal = "";
-                CircuitElm t = entry.getKey();
-                for (CircuitNodeLink link : node.links) {
-                    CircuitElm e = link.elm;
-                    if (e.getPostCount() == 2) {
-                        for (int i = 0; i < t.getPostCount(); i++) {
-                            switch (i) {
-                                case 0:
-                                    terminal = "b";
-                                    break;
-                                case 1:
-                                    terminal = "c";
-                                    break;
-                                case 2:
-                                    terminal = "e";
-                                    break;
-                            }
-                            Point p = t.getPost(i);
+                switch (i) {
+                    case 0:
+                        terminal = "b";
+                        break;
+                    case 1:
+                        terminal = "c";
+                        break;
+                    case 2:
+                        terminal = "e";
+                        break;
+                }
+                boolean ok = false;
+                for (CircuitNode node : kMap.get(t)) {
+                    for (CircuitNodeLink link : node.links) {
+                        CircuitElm e = link.elm;
+                        if (e.getPostCount() == 2) {
                             Component c = null;
                             if (p.equals(e.getPost(0))) {
                                 c = jointMap.get(e.getPost(1));
                             } else if (p.equals(e.getPost(1))) {
                                 c = jointMap.get(e.getPost(0));
+                            } else {
+//                                System.out.println("Hfail: " + t + " " + i);
+                                continue;
                             }
                             if (c != null) {
                                 connect(entry.getValue(), c, e.dump(), terminal);
                                 entry.getValue().type = t.getClass().getSimpleName();
+                                ok = true;
                             } else {
-                                System.out.println("fail: " + e);
+//                                System.out.println("fail: " + e);
                             }
                         }
                     }
+                }
+                if (!ok) {
+                    System.out.println("Hfail: " + t + " " + i + " " + kMap.get(t).size());
                 }
             }
         }

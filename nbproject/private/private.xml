@@ -2,19 +2,6 @@
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="3">
         <file>
-            <url>src/rtlcc/CircuitBuilder.java</url>
-            <bookmark id="2">
-                <name/>
-                <line>114</line>
-                <key/>
-            </bookmark>
-            <bookmark id="1">
-                <name/>
-                <line>320</line>
-                <key/>
-            </bookmark>
-        </file>
-        <file>
             <url>src/rtlcc/Circuit.java</url>
             <bookmark id="3">
                 <name/>
@@ -27,7 +14,6 @@
         <group>
             <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/RTLCC.java</file>
             <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/CircuitBuilder.java</file>
-            <file>file:/home/antunes/Downloads/RTLCircuitCubefication/src/rtlcc/Circuit.java</file>
         </group>
     </open-files>
 </project-private>
